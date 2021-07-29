@@ -1,0 +1,28 @@
+$headerHeight: 54px;
+$bodyHeight: calc(100vh - 54px);
+
+
+.appFrame {
+  height: $bodyHeight;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.topPane {
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 0;
+}
+
+.bottomPane {
+  display: flex;
+}
+
+.leftPane {
+  display: flex;
+}
+
+.rightPane {
+  display: flex;
+}

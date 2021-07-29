@@ -1,5 +1,5 @@
 # Packages
-yarn add node-sass@4.14.1 react-icons d3
+yarn add node-sass@4.14.1 react-bootstrap bootstrap react-icons d3 axios
 
 
 # Getting Started with Create React App

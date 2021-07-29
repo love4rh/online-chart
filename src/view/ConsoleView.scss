@@ -1,0 +1,66 @@
+$clrDebug: #90918b;
+$clrNormal: #f8f8f2;
+$clrWarn: #e7db74;
+$clrError: #fd9622;
+$clrFatal: #f92472;
+$clrNotice: #5ed8ef;
+
+.consoleBox {
+  display: flex;
+  flex-direction: row;
+  background-color: #1e1f1c;
+}
+
+.consoleLogDiv {
+  color: whitesmoke;
+  padding: 2px;
+  overflow: auto;
+}
+
+.consoleLogDiv::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.consoleLogDiv::-webkit-scrollbar-thumb {
+  background-color: #656662;
+  border-radius: 10px;
+}
+
+.consoleLogDiv::-webkit-scrollbar-track {
+  background-color: #2e2e2e;
+  border-radius: 10px;
+}
+
+.consoleItem {
+  height: 20px;
+  font-size: 14px;
+  font-family: 'Courier New', Courier, monospace;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.consoleItem0 {
+  color: $clrDebug;
+}
+
+.consoleItem1 {
+  color: $clrNormal;
+}
+
+.consoleItem2 {
+  color: $clrWarn;
+}
+
+.consoleItem3 {
+  color: $clrError;
+}
+
+.consoleItem4 {
+  color: $clrFatal;
+}
+
+.consoleItem5 {
+  color: $clrNotice;
+}
