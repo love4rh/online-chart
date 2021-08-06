@@ -1,8 +1,8 @@
 import React, { Component } from 'react';
 
-import { isundef, isvalid, setGlobalMessageHandle } from '../util/tool.js';
+import { isvalid, setGlobalMessageHandle } from '../util/tool.js';
 import { apiProxy } from '../util/apiProxy.js';
-import { Log } from '../util/Logging.js';
+// import { Log } from '../util/Logging.js';
 
 import { BsList } from 'react-icons/bs';
 import Spinner from 'react-bootstrap/Spinner'
@@ -20,7 +20,7 @@ class MainFrame extends Component {
     super(props);
 
     this.state = {
-      pageType: 'entry', // entry, main,
+      pageType: 'main', // entry, main,
       message: null,
       waiting: false,
       menuShown: false,
@@ -88,7 +88,7 @@ class MainFrame extends Component {
   }
 
   render () {
-    const { waiting, pageType, message, menuShown } = this.state;
+    const { waiting, pageType, message, menuShown, appData } = this.state;
     const toastOn = isvalid(message);
 
     return (
@@ -99,7 +99,7 @@ class MainFrame extends Component {
         </div>
         <div className="scrollLock">
           { pageType === 'entry' && <div>Hello World!</div> }
-          { pageType === 'main' && <AppFrame /> }
+          { pageType === 'main' && <AppFrame appData={appData} /> }
         </div>
         { waiting &&
           <div className="blockedLayer">

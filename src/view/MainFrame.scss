@@ -8,8 +8,8 @@
 
 .mainHeader {
 	height: $headerHeight;
-	background-color: #1e1f1c;
-	color: white;
+	background-color: $headerBGColor;
+	color: $headerFGColor;
 	display: flex;
 	flex-direction: row;
 	padding: 0 10px;
@@ -33,11 +33,11 @@
 }
 
 .mainMenuButton:hover {
-	background-color: #20303d;
+	background-color: $menuButtonBGColorOver;
 }
 
 .mainMenuButtonDisabled {
-	color: #777;
+	color: $menuButtonDisabledGFColor;
 	cursor: default;
 }
 
@@ -48,14 +48,9 @@
 
 .mainBody {
 	min-height: $bodyHeight;
-	background-color: #394b59;
+	background-color: $bodyBGColor;
 }
 
-.mainBodyLimit {
-	min-height: $bodyHeight;
-	background-color: #282923;
-	overflow: hidden;
-}
 
 .blockedLayer {
 	width: 100%;
@@ -83,8 +78,8 @@
 	position: absolute;
 	top: $headerHeight;
 	height: $bodyHeight;
-	background-color: #20303d;
-	color: white;
+	background-color: $sideMenuBGColor;
+	color: $sideMenuFGColor;
 	overflow-x: hidden;
 	width: 280px;
 	z-index: 999;

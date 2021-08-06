@@ -282,3 +282,18 @@ exports.showGlobalMessage = function(msg) {
 		_globalMsgHandler_(msg);
 	}
 }
+
+
+// from: https://developer.mozilla.org/ko/docs/Web/JavaScript/Reference/Global_Objects/Math/random
+exports.randomReal = (min, max) => {
+  return Math.random() * (max - min) + min;
+}
+
+
+// 최대값, 최소값 모두 포함
+// from: https://developer.mozilla.org/ko/docs/Web/JavaScript/Reference/Global_Objects/Math/random
+exports.randomInteger = (min, max) => {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}

@@ -1,5 +1,4 @@
-$headerHeight: 54px;
-$bodyHeight: calc(100vh - 54px);
+@import "../view/theme.scss";
 
 
 .appFrame {
@@ -21,8 +20,18 @@ $bodyHeight: calc(100vh - 54px);
 
 .leftPane {
   display: flex;
+  flex-direction: column;
+}
+
+.leftTopPane {
+  display: flex;
+}
+
+.leftBottomPane {
+  display: flex;
 }
 
 .rightPane {
   display: flex;
+  background-color: $chartBGColor;
 }

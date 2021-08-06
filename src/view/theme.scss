@@ -1,2 +1,16 @@
 $headerHeight: 54px;
 $bodyHeight: calc(100vh - 54px);
+
+$headerBGColor: #1e1f1c; // 헤더 배경색
+$headerFGColor: white; // 헤더 폰트 컬러
+
+$bodyBGColor: #394b59; // 기본 배경색
+
+$menuButtonDisabledGFColor: #777; // 헤더 내 메뉴 비활성 메뉴 버튼 폰트 컬러
+$menuButtonBGColorOver: #20303d; // 헤더 내 메뉴 버튼 마우스 오버 시 배경색
+
+$sideMenuBGColor: #20303d; // 사이드 메뉴 배경색
+$sideMenuFGColor: white; // 사이드 메뉴 폰트색
+
+
+$chartBGColor: whitesmoke; // 차팅 영역 기본 배경색

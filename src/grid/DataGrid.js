@@ -4,7 +4,8 @@ import PropTypes from 'prop-types';
 import cn from 'classnames';
 
 import {
-  isvalid, isundef, isBetween, nvl, calcDigitsWithCommas, tickCount, binarySearch,
+  isvalid, isundef, isBetween, nvl,
+  calcDigitsWithCommas, tickCount, binarySearch,
   setCurrentActiveGrid, dismissActiveGrid, proxyCall
 } from './common.js';
 
@@ -57,6 +58,7 @@ class DataGrid extends Component {
     height: PropTypes.number, // Grid의 높이. width도 같이 지정된 경우에만 적용됨
     width: PropTypes.number,  // Grid의 너비. height도 같이 지정된 경우에만 적용됨
     onEvent: PropTypes.func, // Grid에서 발생하는 이벤트를 전달하기 위한 속성
+    editable: PropTypes.bool, // 편집 여부. 기본값 false
   }
 
   // 페이지 당 표시 가능한 레코드 개수 계산
@@ -348,6 +350,28 @@ class DataGrid extends Component {
     document.body.removeChild(t);
   }
 
+  doPasteClippedText = () => {
+    // const ds = this.props.dataSource;
+    const sel = this.state.selectedRange;
+
+    const
+      r1 = Math.max(0, Math.min(sel.row, nvl(sel.row2, sel.row))),
+      c1 = Math.max(0, Math.min(sel.col, nvl(sel.col2, sel.col)))
+      // r2 = Math.min(ds.getRowCount() - 1, Math.max(sel.row, nvl(sel.row2, sel.row))),
+      // c2 = Math.min(ds.getColumnCount() - 1, Math.max(sel.col, nvl(sel.col2, sel.col)))
+    ;
+
+    navigator.clipboard.readText().then((text) => {
+      console.log('Pasted content: ', text);
+
+      // TODO implements
+      // 탭 구분, 레코드 구분
+      // (c1, r1)에서 부터 붙여 나가기.
+      // 현재 범위를 넘는다면 확장해야 함.
+      // 타입이 다른 경우는 어떻게 하지? (차팅에서 null 처리?)
+    });
+  }
+
   calcNewBeginRow = (offsetY) => {
     const { dataSource } = this.props;
     const { beginRow, rowPerHeight } = this.state;
@@ -576,7 +600,9 @@ class DataGrid extends Component {
     if( this._eventHold ) {
       return;
     }
+
     // console.log('keydown', ev.keyCode, ev.key, ev.ctrlKey, ev.altKey, ev.shiftKey, ev.repeat);
+
     let processed = true;
 
     const { keyCode, ctrlKey, shiftKey } = ev;
@@ -652,8 +678,11 @@ class DataGrid extends Component {
         this.setState({ selectedRange:{col:0, row:0, col2:colCount - 1, row2:rowCount - 1} });
       } else if( keyCode === 70 ) { // ctrl+f: find
         this.setState({ inFinding:true });
-      } else
+      } else if( keyCode === 86 ) { // ctrl+v: paste
+        this.doPasteClippedText();
+      } else {
         processed = false;
+      }
     }
 
     if( processed && ev.preventDefault ) {

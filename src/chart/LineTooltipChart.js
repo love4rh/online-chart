@@ -2,7 +2,8 @@ import React, { Component } from 'react';
 
 import * as d3 from 'd3';
 
-import './LineTooltipChart.scss';
+import './styles.scss';
+
 
 
 // https://github.com/adamjanes/udemy-d3/blob/master/06/6.10.0/js/main.js

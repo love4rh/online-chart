@@ -53,6 +53,7 @@ $clrWidgetElemSelected: #52534e;
   overflow: hidden;
   background-color: $clrBasicBackground;
   outline: none;
+  box-sizing: border-box;
 }  
 
 .wrapContainer {
@@ -117,6 +118,7 @@ $clrWidgetElemSelected: #52534e;
   border-bottom: 1px solid $clrCellBorder;
   background-color: $clrHeader;
   position: absolute;
+  box-sizing: border-box;
 }
 
 .columnTitle {
@@ -165,6 +167,7 @@ $clrWidgetElemSelected: #52534e;
   text-align: center;
   overflow: hidden;
   flex: 1 1;
+  box-sizing: border-box;
 }
 
 /* Data Container.js */
@@ -191,6 +194,7 @@ $clrWidgetElemSelected: #52534e;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: default;
+  box-sizing: border-box;
 }
 
 .selectedCell {
