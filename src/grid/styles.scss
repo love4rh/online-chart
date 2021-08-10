@@ -78,6 +78,7 @@ $clrWidgetElemSelected: #52534e;
 }
 
 .headCorner {
+  box-sizing: border-box;
   border-right: 1px solid $clrCellBorder;
   border-bottom: 1px solid $clrCellBorder;
   background-color: $clrHeader;
@@ -122,6 +123,7 @@ $clrWidgetElemSelected: #52534e;
 }
 
 .columnTitle {
+  box-sizing: border-box;
   padding: 4px;
   display: inline-block;
   text-overflow: ellipsis;
@@ -130,6 +132,18 @@ $clrWidgetElemSelected: #52534e;
   text-align: center;
   font-size: $fontSizeHeader;
   color: $clrHeaderFont;
+}
+
+.columnTitleEditor {
+  box-sizing: border-box;
+  border: none;
+  background-color: $clrHeader;
+  font-size: $fontSizeHeader;
+  color: $clrHeaderFont;
+  outline: 1px solid $clrFilterOutline;
+  z-index: 10;
+  margin: 0 1px;
+  padding: 0 3px;
 }
 
 .columnHederButton {
@@ -203,7 +217,6 @@ $clrWidgetElemSelected: #52534e;
 
 .dataCellEditor {
   box-sizing: border-box;
-  outline: none;
   border: none;
   background-color: $clrCell;
   color: $clrFont;

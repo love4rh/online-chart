@@ -3,7 +3,7 @@ import { tickCount, randomReal, randomInteger } from '../util/tool.js';
 
 const appData = {
   // DiosDataSource에서 가져옴
-  // { (title), columnCount, recordCount, columns, records, beginIndex, getMore, controller, (fetchDone) }
+  // { (title), columns, records }
 
   
   getSampleData: () => {
@@ -18,16 +18,19 @@ const appData = {
     const records = [];
 
     for(var i = 0; i < 100; ++i) {
-      records.push([nowTick + 1000 * randomInteger(-80000, 80000), randomReal(-1, 1), randomReal(-100, 100), 'P' + i ])
+      records.push([
+        nowTick + 1000 * randomInteger(-80000, 80000),
+        Math.round(randomReal(-1, 1) * 10000) / 10000,
+        randomInteger(-1000, 1000),
+        'P' + i
+      ]);
     }
 
     return {
       title: 'sample',
       columns,
       records,
-      columnCount: columns.length,
-      recordCount: records.length,
-      beginIndex: 0
+      editable: true
     };
   }
 };

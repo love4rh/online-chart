@@ -10,6 +10,10 @@ export const isvalid = (o) => {
 }
 
 
+export const isValidString = (s) => {
+  return s !== null && typeof(s) !== 'undefined' && s !== '';
+}
+
 export const isBetween = (val, f, t) => {
   return f <= val && val < t;
 }

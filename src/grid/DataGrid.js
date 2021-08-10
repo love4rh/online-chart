@@ -6,7 +6,8 @@ import cn from 'classnames';
 import {
   isvalid, isundef, isBetween, nvl,
   calcDigitsWithCommas, tickCount, binarySearch,
-  setCurrentActiveGrid, dismissActiveGrid, proxyCall
+  setCurrentActiveGrid, dismissActiveGrid, proxyCall,
+  isValidString
 } from './common.js';
 
 import { DataGridScrollBar, _scrollBarWith_ } from './DataGridScrollBar.js';
@@ -351,7 +352,13 @@ class DataGrid extends Component {
   }
 
   doPasteClippedText = () => {
-    // const ds = this.props.dataSource;
+    const ds = this.props.dataSource;
+
+    if( isundef(ds.setCellValue) ) {
+      console.log('DataSource unsupported setCellValue');
+      return;
+    }
+
     const sel = this.state.selectedRange;
 
     const
@@ -364,11 +371,19 @@ class DataGrid extends Component {
     navigator.clipboard.readText().then((text) => {
       console.log('Pasted content: ', text);
 
-      // TODO implements
-      // 탭 구분, 레코드 구분
-      // (c1, r1)에서 부터 붙여 나가기.
-      // 현재 범위를 넘는다면 확장해야 함.
-      // 타입이 다른 경우는 어떻게 하지? (차팅에서 null 처리?)
+      const records = text.split('\n');
+
+      for(let i = 0; i < records.length; ++i) {
+        if( !isValidString(records[i]) ) {
+          continue;
+        }
+
+        const rec = records[i].split('\t');
+        for(let j = 0; j < rec.length; ++j) {
+          // TODO 타입 구분
+          ds.setCellValue(c1 + j, r1 + i, rec[j]);
+        }
+      }
     });
   }
 
@@ -898,10 +913,10 @@ class DataGrid extends Component {
   // open일 경우 param에 cbClose:func 추가됨.
   handleColumnHeaderEvent = (type, param) => {
     switch( type ) {
-    case 'open':
+    case 'open':  // 컬럼 필터 열기
       this.setState({ activeFilter: param.colIdx, filterPos: param.pos, cbFilterClose: param.cbClose });
       break;
-    case 'close':
+    case 'close':  // 컬럼 필터 닫기
       this.setState({ activeFilter:-1, filterPos:null, cbFilterClose:null });
       break;
 
@@ -913,6 +928,14 @@ class DataGrid extends Component {
     case 'unpinned':
       this.setState( DataGrid.recalculateDimension(this.props, this.state, null, null, null, param.colIdx) );
       this._refMain.current.focus();
+      break;
+
+    case 'titleChanged':  // 컬럼명칭 변경
+      const { colIdx, changed } = param;
+      const { ds } = this.state;
+      if( ds.setColumnNameType ) {
+        ds.setColumnNameType(colIdx, changed);
+      }
       break;
 
     default:
@@ -1191,6 +1214,7 @@ class DataGrid extends Component {
           onColumnEvent={this.handleColumnHeaderEvent}
           fixedType={c >= fixedColumn ? 0 : (c === fixedColumn - 1 ? 2 : 1)}
           fixable={c < fixableCount}
+          editable={ds.isEditable && ds.isEditable()}
         />
       );
 

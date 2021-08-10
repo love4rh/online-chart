@@ -6,7 +6,7 @@ import { LayoutDivider, DividerDirection } from '../component/LayoutDivider.js';
 import { LineTooltipChart } from '../chart/LineTooltipChart.js';
 
 import DataGrid from '../grid/DataGrid.js';
-import DiosDataSource from '../grid/DiosDataSource.js';
+import BasicDataSource from '../grid/BasicDataSource.js';
 
 import ConsoleView from '../view/ConsoleView.js';
 import DummyView from '../view/DummyView.js';
@@ -32,7 +32,7 @@ class AppFrame extends Component {
       leftWidth: 300,
       controlPaneHeight: 300,
 
-      ds: new DiosDataSource(appData.getSampleData())
+      ds: new BasicDataSource(appData.getSampleData())
     };
 
     this._mainDiv = React.createRef();
