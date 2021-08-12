@@ -375,7 +375,7 @@ class DataGrid extends Component {
     ;
 
     navigator.clipboard.readText().then((text) => {
-      // console.log('Pasted content: ', text);
+      console.log('Pasted content: ', text);
       const pasted = text.split('\n');
 
       for(let i = 0; i < pasted.length; ++i) {
@@ -514,7 +514,7 @@ class DataGrid extends Component {
     newBegin = Math.max(Math.min(newBegin, rowCount - rowPerHeight + 1), 0);
 
     // 표시 영역 데이터 존재 여부 체크
-    const areaInvalid = !ds.isValid || !ds.isValid(newBegin, newBegin + rowPerHeight);
+    const areaInvalid = ds.isValid && !ds.isValid(newBegin, newBegin + rowPerHeight);
 
     if( areaInvalid ) {
       if( isvalid(this.dataFetchJob) ) {

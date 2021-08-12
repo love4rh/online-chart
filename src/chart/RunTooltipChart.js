@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 
 import * as d3 from 'd3';
 
-import { makeid, isvalid, isDateTime } from '../grid/common.js';
+import { makeid, isvalid, isDateTime, numberWithCommas } from '../grid/common.js';
 
 import './styles.scss';
 
@@ -85,6 +85,8 @@ class RunTooltipChart extends Component {
 
   componentDidUpdate() {
     this.state.chartElement.yLabel.text('AAAA');
+
+    this.updateDS3Chart();
   }
 
   initializeD3Area = (canvasWidth, canvasHeight) => {
@@ -170,46 +172,38 @@ class RunTooltipChart extends Component {
 
     const trans = d3.transition().duration(1000);
 
-    const range = [0, ds.getRowCount()];
+    const xRange = [0, ds.getRowCount() + 1];
 
     // Min/Max 계산
+    const y1Range = [0, 0];
     for(let c = 0; c < y1.length; ++c) {
-      for(let r = 0; r < ds.getRowCount(); ++r) {
-        ds.getCellValue(y1[0], r)
+      const tmpMM = d3.extent(ds.getDataList(y1[c]));
+
+      if( y1Range[0] > tmpMM[0] ) {
+        y1Range[0] = tmpMM[0];
+      }
+
+      if( y1Range[1] < tmpMM[1] ) {
+        y1Range[1] = tmpMM[1];
       }
     }
 
-    const dataTimeFiltered = filteredData[coinType].filter(d => {
-      return ((d.date >= range[0]) && (d.date <= range[1]))
-    })
-  
-    x.domain(d3.extent(dataTimeFiltered, d => d.date));
+    y1Range[0] = y1Range[0] / 1.005;
+    y1Range[1] = y1Range[1] * 1.005;
 
-    y.domain([
-      d3.min(dataTimeFiltered, d => d[valueType]) / 1.005,
-      d3.max(dataTimeFiltered, d => d[valueType]) * 1.005
-    ]);
-
-    const formatSi = d3.format('.2s');
+    x.domain(xRange);
+    y.domain(y1Range);
 
     xAxisCall.scale(x);
-    xAxis.transition(trans).call(xAxisCall)
+    xAxis.call(xAxisCall)
       .selectAll('text')
       .attr('y', '10')
       .attr('x', '-5')
-      .attr('text-anchor', 'end')
-      .attr('transform', 'rotate(-45)');
+      .attr('text-anchor', 'end');
+    //  .attr('transform', 'rotate(-45)');
 
     yAxisCall.scale(y);
-    yAxis.transition(trans).call(yAxisCall.tickFormat((xv) => {
-      const s = formatSi(xv);
-      switch( s[s.length - 1] ) {
-        case 'G': return s.slice(0, -1) + 'B'; // billions
-        case 'K': return s.slice(0, -1) + 'K'; // thousands
-        default: break;
-      };
-      return s;
-    }));
+    yAxis.call(yAxisCall.tickFormat((v) => numberWithCommas(v)));
 
     // yAxis.style('display', 'none');
   
@@ -246,31 +240,43 @@ class RunTooltipChart extends Component {
       .on('mouseout', () => focus.style('display', 'none'))
       .on('mousemove', (ev) => {
         const x0 = x.invert(ev.offsetX - margin.LEFT);
-        const i = bisectDate(dataTimeFiltered, x0, 1);
-        const d0 = dataTimeFiltered[i - 1];
-        const d1 = dataTimeFiltered[i];
-        if( !d0 || !d1 ) {
-          return;
-        }
-        const d = x0 - d0.date > d1.date - x0 ? d1 : d0;
-        focus.attr('transform', `translate(${x(d.date)}, ${y(d[valueType])})`);
-        focus.select('text').text(d[valueType]);
-        focus.select('.x-hover-line').attr('y2', HEIGHT - y(d[valueType]));
-        focus.select('.y-hover-line').attr('x2', -x(d.date));
+        // const i = bisectDate(dataTimeFiltered, x0, 1);
+        const i = Math.max(0, Math.min(Math.round(x0) - 1, ds.getRowCount() - 1));
+
+        const dataList = ds.getDataList(y1[0]);
+
+        const d = dataList[i]; // x0 - d0.date > d1.date - x0 ? d1 : d0;
+
+        focus.attr('transform', `translate(${x(i + 1)}, ${y(d)})`);
+        focus.select('text').text(d);
+        focus.select(".x-hover-line")
+          .attr("y1", - y(d))
+          .attr("y2", HEIGHT - y(d));
+        focus.select(".y-hover-line")
+          .attr("x1", WIDTH - x(i + 1))
+          .attr("x2", - x(i + 1));
       });
     
     // Path generator
-    const line = d3.line()
-      .x(d => x(d.date))
-      .y(d => y(d[valueType]));
+    // for(let c = 0; c < y1.length; ++c) {
+    const dataList = ds.getDataList(y1[0]);
 
-    // Update our line path
-    g.select('.line')
-      .transition(trans)
-      .attr('d', line(dataTimeFiltered));
+    const line = d3.line()
+      .x((_, i) => x(i + 1))
+      .y(d => y(d));
+
+    d3.select('line1').remove();
+
+    g.append('path')
+      .attr('class', 'line1')
+      .attr('fill', 'none')
+      .attr('stroke', d3.schemeTableau10[0])
+      .attr('stroke-width', '3px')
+      .attr('d', line(dataList));
 
     xLabel.text('index');
     yLabel.text('values');
+    // */
   }
 
   render() {

@@ -12,11 +12,11 @@ import {
  * - 레코드 편집 가능
  * - 컬럼 확장 가능
  * - 레코드 추가/삭제 가능
+ * - 데이터를 컬럼 단위로 관리함
  * 
  * props: {
  *   title: Optional. 데이터 제목(그리드 제목)
- *   columns: 컬럼 정의. [{name, type}, ...]. type은 number, datetime, boolean, string 중 하나. 값이 바뀔 수 있음
- *   records: 레코드 데이터. [[], [], ... ] 형태. 안쪽 목록이 한 레코드의 데이터 배열임. 값이 바뀔 수 있음
+ *   columns: 컬럼 정의. [{name, type, data([])}, ...]. type은 number, datetime, boolean, string 중 하나. 값이 바뀔 수 있음
  *   editable: 값 편집 가능 여부
  * }
  */
@@ -42,11 +42,11 @@ class BasicDataSource {
   resetData = (props) => {
     this.props = props;
 
-    const { columns, records, editable } = props;
+    const { columns, editable } = props;
 
     this.state = {
       columns: columns,
-      records: records,
+      dataSize: columns[0].data.length,
       editable: istrue(editable)
     };
 
@@ -75,13 +75,7 @@ class BasicDataSource {
 
   getColumnType = (col) => {
     // unknown, string, Integer, Real, DateTime, Text
-    const type = this.state.columns[col].type;
-
-    if( type === 'Integer' || type === 'Real' ) {
-      return 'number';
-    }
-
-    return type;
+    return this.state.columns[col].type;
   }
 
   setRowFilter = (rowFilter) => {
@@ -89,7 +83,7 @@ class BasicDataSource {
   }
 
   _getRowCount = (raw) => {
-    return !raw && this._rowFilter ? this._rowFilter.length : this.state.records.length;
+    return !raw && this._rowFilter ? this._rowFilter.length : this.state.dataSize;
   }
 
   getRowCount = () => {
@@ -101,21 +95,23 @@ class BasicDataSource {
   }
 
   _getRawCellValue = (col, row) => {
-    const { records } = this.state;
-    const rec = records[row];
+    const { columns } = this.state;
+    const { data } = columns[col];
 
-    if( rec ) {
-      if( isundef(rec[col]) ) {
+    if( data ) {
+      const value = data[row];
+
+      if( isundef(value) ) {
         return null;
       }
 
       switch( this.getColumnType(col) ) {
         case 'datetime':
-          return dateToString(new Date(rec[col]), false);
+          return dateToString(new Date(value), false);
         case 'string':
-          return decodeURIComponent(rec[col]).replace(/[+]/g, ' ');
+          return decodeURIComponent(value).replace(/[+]/g, ' ');
         default:
-          return nvl(rec[col], '');
+          return nvl(value, '');
       }
     }
 
@@ -128,6 +124,10 @@ class BasicDataSource {
     }
 
     return this._getRawCellValue(col, row);
+  }
+
+  isValid = (b, e) => {
+    return true;
   }
 
   applyColumnFilter = (selectedItems) => {
@@ -196,10 +196,12 @@ class BasicDataSource {
   getPreferedColumnWidth = (c) => {
     const letterWidth = 7.2;
 
-    const { records } = this.state;
+    const { columns } = this.state;
+    const dataSize = this._getRowCount(true);
+
     let w = Math.max(50, this.getColumnName(c).length * letterWidth + 16); // minimum size of column
 
-    for(let r = 0; r < Math.min(20, records.length); ++r) {
+    for(let r = 0; r < Math.min(20, dataSize); ++r) {
       const val = this.getCellValue(c, r);
 
       if( isvalid(val) ) {
@@ -214,22 +216,17 @@ class BasicDataSource {
     return Math.ceil(w) + (this.hasColumnFilterData && this.hasColumnFilterData(c) ? this.getRowHeight() : 0);
   }
 
-  // eslint-disable-next-line
-  isValid = (begin, end) => {
-    const { records } = this.state;
-    end = Math.min(end, this.getRowCount() - 1);
-    return 0 <= begin && begin <= end && end < records.length;
-  }
-
   extendColumns = (col) => {
-    const columns = this.state.columns;
+    const { columns } = this.state;
 
     if( !this.isEditable() || col < columns.length ) {
       return false;
     }
 
+    const dataSize = this._getRowCount(true);
+
     for(var i = columns.length; i <= col; ++i) {
-      columns.push({ name: 'untitled-' + i, type: 'Text' });
+      columns.push({ name: 'untitled-' + i, type: 'Text', data: columns[0].data.map(d => null) });
     }
 
     return true;
@@ -257,7 +254,7 @@ class BasicDataSource {
       return false;
     }
 
-    const { columns, records } = this.state;
+    const { columns, dataSize } = this.state;
 
     if( col >= columns.length ) {
       this.setColumnNameType(col, 'untitled-' + col, estimateValueType(value));
@@ -274,13 +271,19 @@ class BasicDataSource {
         break;
     }
 
-    if( row >= records.length ) {
-      records[row] = [];
+    columns[col].data[row] = value;
+
+    if( row >= dataSize ) {
+      this.state.dataSize = row + 1;
     }
 
-    records[row][col] = value;
+    console.log('setValue', this.state);
 
     return true;
+  }
+
+  getDataList = (col) => {
+    return this.state.columns[col].data;
   }
 };
 

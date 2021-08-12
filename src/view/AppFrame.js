@@ -24,8 +24,8 @@ class AppFrame extends Component {
     super(props);
 
     const { appData } = this.props;
-
     const ds = new BasicDataSource(appData.getSampleData());
+
     ds.setEventHandler(this.handleDataEvent);
 
     this.state = {
