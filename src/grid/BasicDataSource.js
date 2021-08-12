@@ -1,5 +1,6 @@
 import {
-  isundef, istrue, isvalid, numberWithCommas, dateToString, tickCount, nvl
+  isundef, istrue, isvalid, numberWithCommas, dateToString, tickCount, nvl,
+  estimateValueType, tryParseNumber
 } from './common.js';
 
 
@@ -14,7 +15,7 @@ import {
  * 
  * props: {
  *   title: Optional. 데이터 제목(그리드 제목)
- *   columns: 컬럼 정의. [{name, type}, ...]. type은 DateTime, Integer, Real, Text 중 하나. 값이 바뀔 수 있음
+ *   columns: 컬럼 정의. [{name, type}, ...]. type은 number, datetime, boolean, string 중 하나. 값이 바뀔 수 있음
  *   records: 레코드 데이터. [[], [], ... ] 형태. 안쪽 목록이 한 레코드의 데이터 배열임. 값이 바뀔 수 있음
  *   editable: 값 편집 가능 여부
  * }
@@ -25,6 +26,17 @@ class BasicDataSource {
 
     this._modifiedTime = tickCount();
     this._filterMap = {};
+    this._evHandler = null;
+  }
+
+  setEventHandler = (handler) => {
+    this._evHandler = handler;
+  }
+
+  trigerEvent = () => {
+    if( this._evHandler ) {
+      this._evHandler();
+    }
   }
 
   resetData = (props) => {
@@ -98,9 +110,9 @@ class BasicDataSource {
       }
 
       switch( this.getColumnType(col) ) {
-        case 'DateTime':
+        case 'datetime':
           return dateToString(new Date(rec[col]), false);
-        case 'Text':
+        case 'string':
           return decodeURIComponent(rec[col]).replace(/[+]/g, ' ');
         default:
           return nvl(rec[col], '');
@@ -241,9 +253,31 @@ class BasicDataSource {
   }
 
   setCellValue = (col, row, value) => {
-    const records = this.state.records;
+    if( !this.isEditable() ) {
+      return false;
+    }
 
-    // TODO value의 값 형태 검사
+    const { columns, records } = this.state;
+
+    if( col >= columns.length ) {
+      this.setColumnNameType(col, 'untitled-' + col, estimateValueType(value));
+    }
+
+    switch( this.getColumnType(col) ) {
+      case 'number':
+        value = tryParseNumber(value);
+        break;
+      
+      case 'datetime':
+      default:
+        value = '' + value;
+        break;
+    }
+
+    if( row >= records.length ) {
+      records[row] = [];
+    }
+
     records[row][col] = value;
 
     return true;

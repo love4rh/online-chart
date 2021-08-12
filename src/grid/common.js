@@ -1,5 +1,6 @@
-////////////////////////////////////////////////////////////////////////////////
-// from tool.js
+// const valueTypes = [ 'number', 'datetime', 'boolean', 'string', 'unknown' ];
+
+
 export const isundef = (o) => {
   return o === null || typeof(o) === 'undefined';
 }
@@ -198,4 +199,29 @@ export const printDimension = (title, tag) => {
   const { offsetLeft, offsetTop, offsetWidth, offsetHeight } = tag;
 
   console.log(title, offsetLeft, offsetTop, offsetWidth, offsetHeight);
+}
+
+
+// value의 값 형태를 추정하여 반환
+// returns number, datetime, boolean, string
+export const estimateValueType = (value) => {
+  const vt = typeof value;
+
+  if( vt === 'number' || vt === 'boolean' ) {
+    return vt;
+  }
+
+  // TODO datetime 고려
+
+  return isNaN(parseFloat(value)) ? 'string' : 'number';
+}
+
+
+export const tryParseNumber = (str) => {
+  const n = parseFloat(str);
+  return isNaN(n) ? null : n;
+}
+
+export const isDateTime = (typeStr) => {
+  return 'datetime' === typeStr;
 }

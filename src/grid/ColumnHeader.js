@@ -138,6 +138,8 @@ class ColumnHeader extends Component {
   handleKeyDown = (ev) => {
     const { keyCode } = ev;
 
+    ev.stopPropagation();
+
     if( keyCode === 27 ) { // escape
       this.handleTitleEditDone(false)();
     } else if( keyCode === 13 ) { // enter

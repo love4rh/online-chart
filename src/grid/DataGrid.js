@@ -244,6 +244,12 @@ class DataGrid extends Component {
     }
   }
 
+  // 그리드 다시 그리기
+  redraw = () => {
+    const columnWidth = DataGrid.calcIntialColumnWidth(this.state.ds, 480);
+    this.setState( DataGrid.recalculateDimension(this.props, this.state, null, null, columnWidth) );
+  }
+
   onResize = () => {
     const { clientWidth, clientHeight } = this._refMain.current;
     this.setState( DataGrid.recalculateDimension(this.props, this.state, clientWidth, clientHeight) );
@@ -369,20 +375,24 @@ class DataGrid extends Component {
     ;
 
     navigator.clipboard.readText().then((text) => {
-      console.log('Pasted content: ', text);
+      // console.log('Pasted content: ', text);
+      const pasted = text.split('\n');
 
-      const records = text.split('\n');
-
-      for(let i = 0; i < records.length; ++i) {
-        if( !isValidString(records[i]) ) {
+      for(let i = 0; i < pasted.length; ++i) {
+        if( !isValidString(pasted[i]) ) {
           continue;
         }
 
-        const rec = records[i].split('\t');
-        for(let j = 0; j < rec.length; ++j) {
-          // TODO 타입 구분
-          ds.setCellValue(c1 + j, r1 + i, rec[j]);
+        const row = pasted[i].split('\t');
+        for(let j = 0; j < row.length; ++j) {
+          ds.setCellValue(c1 + j, r1 + i, row[j]);
         }
+      }
+
+      this.redraw();
+
+      if( ds.trigerEvent ) {
+        ds.trigerEvent();
       }
     });
   }

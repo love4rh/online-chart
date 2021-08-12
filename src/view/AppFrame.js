@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 
 import { LayoutDivider, DividerDirection } from '../component/LayoutDivider.js';
 
-import { LineTooltipChart } from '../chart/LineTooltipChart.js';
+import { RunTooltipChart } from '../chart/RunTooltipChart.js';
 
 import DataGrid from '../grid/DataGrid.js';
 import BasicDataSource from '../grid/BasicDataSource.js';
@@ -25,14 +25,16 @@ class AppFrame extends Component {
 
     const { appData } = this.props;
 
+    const ds = new BasicDataSource(appData.getSampleData());
+    ds.setEventHandler(this.handleDataEvent);
+
     this.state = {
       clientWidth: 800,
       clientHeight: 400,
       bottomHeight: 150,
       leftWidth: 300,
       controlPaneHeight: 300,
-
-      ds: new BasicDataSource(appData.getSampleData())
+      ds
     };
 
     this._mainDiv = React.createRef();
@@ -52,6 +54,11 @@ class AppFrame extends Component {
 
     // console.log('SQLFrame onResize', clientWidth, clientHeight);
     this.setState({ clientWidth, clientHeight });
+  }
+
+  // DataSource에 변경이 있을 경우 발생하는 이벤트 처리
+  handleDataEvent = (ev) => {
+    console.log('DATA CHANGED EVENT OCCURED');
   }
 
   handleLayoutChanged = (type) => (from, to) => {
@@ -103,7 +110,7 @@ class AppFrame extends Component {
             onLayoutChange={this.handleLayoutChanged('leftRight')}
           />
           <div className="rightPane" style={{ flexBasis:`${mainWidth}px` }}>
-            <LineTooltipChart width={mainWidth} height={mainHeight} />
+            <RunTooltipChart ds={ds} x={-1} y1={[2]} y2={[3]} width={mainWidth} height={mainHeight} />
           </div>
         </div>
         <LayoutDivider direction={DividerDirection.horizontal}

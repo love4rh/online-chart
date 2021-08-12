@@ -8,10 +8,10 @@ const appData = {
   
   getSampleData: () => {
     const columns = [
-      { name: 'X', type: 'DateTime' },
-      { name: 'Y1', type: 'Real' },
-      { name: 'Y2', type: 'Real' },
-      { name: 'Label', type: 'Text' }
+      { name: 'Label', type: 'string' },
+      { name: 'X', type: 'datetime' },
+      { name: 'Y1', type: 'number' },
+      { name: 'Y2', type: 'number' }
     ];
 
     const nowTick = tickCount();
@@ -19,10 +19,10 @@ const appData = {
 
     for(var i = 0; i < 100; ++i) {
       records.push([
+        'P' + i,
         nowTick + 1000 * randomInteger(-80000, 80000),
         Math.round(randomReal(-1, 1) * 10000) / 10000,
-        randomInteger(-1000, 1000),
-        'P' + i
+        randomInteger(-1000, 1000)
       ]);
     }
 

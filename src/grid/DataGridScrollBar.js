@@ -203,7 +203,7 @@ class DataGridScrollBar extends Component {
       barStyle = { height:barHeight, width:barWidth, borderLeft:'1px solid #61615b' };
       thumbStyle = { top:thumbPos, left:0, width:(barWidth - adjThumb), height: thumbSize };
     } else {
-      barStyle = { height:barWidth, width:barHeight };
+      barStyle = { height:barWidth, width:barHeight, marginLeft:1 };
       thumbStyle = { top:0, left:thumbPos, width: thumbSize, height:(barWidth - adjThumb) };
     }
 
