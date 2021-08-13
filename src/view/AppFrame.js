@@ -5,6 +5,8 @@ import { LayoutDivider, DividerDirection } from '../component/LayoutDivider.js';
 
 import { RunTooltipChart } from '../chart/RunTooltipChart.js';
 
+import { makeid } from '../grid/common.js';
+
 import DataGrid from '../grid/DataGrid.js';
 import BasicDataSource from '../grid/BasicDataSource.js';
 
@@ -29,6 +31,7 @@ class AppFrame extends Component {
     ds.setEventHandler(this.handleDataEvent);
 
     this.state = {
+      drawKey: makeid(8),
       clientWidth: 800,
       clientHeight: 400,
       bottomHeight: 150,
@@ -59,6 +62,7 @@ class AppFrame extends Component {
   // DataSource에 변경이 있을 경우 발생하는 이벤트 처리
   handleDataEvent = (ev) => {
     console.log('DATA CHANGED EVENT OCCURED');
+    this.setState({ drawKey: makeid(8) });
   }
 
   handleLayoutChanged = (type) => (from, to) => {
@@ -77,7 +81,7 @@ class AppFrame extends Component {
 
   render() {
     const dividerSize = 4;
-    const { clientWidth, clientHeight, bottomHeight, leftWidth, controlPaneHeight, ds } = this.state;
+    const { drawKey, clientWidth, clientHeight, bottomHeight, leftWidth, controlPaneHeight, ds } = this.state;
 
     const mainWidth = clientWidth - leftWidth - dividerSize;
     const mainHeight = clientHeight - bottomHeight - dividerSize;
@@ -109,8 +113,8 @@ class AppFrame extends Component {
             size={dividerSize}
             onLayoutChange={this.handleLayoutChanged('leftRight')}
           />
-          <div className="rightPane" style={{ flexBasis:`${mainWidth}px` }}>
-            <RunTooltipChart ds={ds} x={-1} y1={[2]} y2={[3]} width={mainWidth} height={mainHeight} />
+          <div key={`chart-${drawKey}`} className="rightPane" style={{ flexBasis:`${mainWidth}px` }}>
+            <RunTooltipChart ds={ds} x={1} y1={[2]} width={mainWidth} height={mainHeight} />
           </div>
         </div>
         <LayoutDivider direction={DividerDirection.horizontal}

@@ -33,23 +33,20 @@ class RunTooltipChart extends Component {
   constructor(props) {
     super(props);
 
-    const { width, height, ds, x, y2 } = this.props;
-
-    const useRightAxis = isvalid(y2) && Array.isArray(y2) && y2.length > 0;
-    const dateTimeAxis = isvalid(x) && x !== -1 && !isDateTime(ds.getColumnType(x));
+    const { width, height } = this.props;
 
     this.state = {
       compID: 'tk' + makeid(8),
       chartDiv: React.createRef(),
+      data: this.initializeData(),
       margin: { LEFT: 100, RIGHT: 100, TOP: 50, BOTTOM: 100 },
-      dateTimeAxis, // X 축이 시간 축인지 여부. false이면 인데스임
-      useRightAxis, // Right 축 사용 여부
       canvasWidth: width,
       canvasHeight: height,
       chartElement: {}
     };
 
-    console.log('RunTooltipChart constructor', width, height)
+
+    console.log('RunChart construct', this.state);
   }
   
   componentDidMount() {
@@ -84,13 +81,103 @@ class RunTooltipChart extends Component {
   }
 
   componentDidUpdate() {
-    this.state.chartElement.yLabel.text('AAAA');
+    this.updateD3Chart();
+  }
 
-    this.updateDS3Chart();
+  initializeData = () => {
+    const { ds, x, y1, y2 } = this.props;
+
+    const withX = isvalid(x) && x !== -1;
+    const dateTimeAxis = withX && isDateTime(ds.getColumnType(x));
+    const dataSize = ds._getRowCount(true);
+
+    let xData = null;
+    let sortedX = null;
+    let extentX = [null, null];
+
+    if( withX ) {
+      const tmpX = [];
+
+      if( dateTimeAxis ) {
+        // 2021-08-12 21:03:43
+        const parseTime = d3.timeParse("%Y-%m-%d %H:%M:%S");
+
+        for(let r = 0; r < dataSize; ++r) {
+          tmpX.push([parseTime(ds.getCellValue(x, r)), r]);
+        }
+      } else {
+        for(let r = 0; r < dataSize; ++r) {
+          tmpX.push([ds.getCellValue(x, r), r]);
+        }
+      }
+
+      tmpX.sort( (a, b) => a[0] > b[0] ? 1 : (a[0] < b[0] ? -1 : 0) );
+
+      xData = tmpX.map(d => d[0]);
+      sortedX = tmpX.map(d => d[1]);
+
+      extentX = [xData[0], xData[xData.length - 1]];
+    } else {
+      extentX = [0, dataSize + 1];
+    }
+
+    const extentY1 = [null, null];
+    const y1Data = y1.map(c => {
+      const data = [];
+      for(let r = 0; r < dataSize; ++r) {
+        const sIdx = sortedX ? sortedX[r] : r;
+        const v = ds.getCellValue(c, sIdx);
+
+        data.push(v);
+
+        if( isvalid(v) ) {
+          if( isvalid(extentY1[0]) ) {
+            extentY1[0] = Math.min(extentY1[0], v);
+            extentY1[1] = Math.max(extentY1[1], v);
+          } else {
+            extentY1[0] = v;
+            extentY1[1] = v;
+          }
+        }
+      }
+      return data;
+    });
+
+    const extentY2 = [null, null];
+    const y2Data = y2 && y2.map(c => {
+      const data = [];
+      for(let r = 0; r < dataSize; ++r) {
+        const sIdx = sortedX ? sortedX[r] : r;
+        const v = ds.getCellValue(c, sIdx);
+
+        data.push(v);
+
+        if( isvalid(v) ) {
+          if( isvalid(extentY2[0]) ) {
+            extentY2[0] = Math.min(extentY2[0], v);
+            extentY2[1] = Math.max(extentY2[1], v);
+          } else {
+            extentY2[0] = v;
+            extentY2[1] = v;
+          }
+        }
+      }
+      return data;
+    });
+
+    const yData = [y1Data];
+
+    if( isvalid(y2Data) ) {
+      yData.push(y2Data);
+    }
+    
+    return { dataSize, xData, yData, dateTimeAxis, extentX, extentY:[extentY1, extentY2] };
   }
 
   initializeD3Area = (canvasWidth, canvasHeight) => {
-    const { compID, chartDiv, margin, dateTimeAxis, useRightAxis } = this.state;
+    const { compID, chartDiv, margin, data } = this.state;
+
+    const { dateTimeAxis, yData } = data;
 
     const WIDTH = canvasWidth - margin.LEFT - margin.RIGHT;
     const HEIGHT = canvasHeight - margin.TOP - margin.BOTTOM;
@@ -104,15 +191,18 @@ class RunTooltipChart extends Component {
     ;
 
     this._g = svg.append('g')
+      .attr('class', compID)
       .attr('transform', `translate(${margin.LEFT}, ${margin.TOP})`);
 
     const g = this._g;
 
-    // for tooltip
-    const bisectDate = d3.bisector(d => d.date).left;
+    // to find x position
+    const bisectDate = d3.bisector(d => d).left;
 
-    // create element for x-axis labels
-    const xLabel = g.append('text')
+    // create element for x-axis: label, scale, axis, axisCall
+    const axisX = {};
+
+    axisX['label'] = g.append('text')
       .attr('class', 'x axisLabel')
       .attr('y', HEIGHT + 50)
       .attr('x', WIDTH / 2)
@@ -120,8 +210,15 @@ class RunTooltipChart extends Component {
       .attr('text-anchor', 'middle')
       .text('Time');
 
-    // create element for y-axis labels
-    const yLabel = g.append('text')
+    axisX['scale'] = dateTimeAxis ? d3.scaleTime().range([0, WIDTH]) : d3.scaleLinear().range([0, WIDTH]);
+    axisX['axis'] = g.append('g').attr('class', 'x axis').attr('transform', `translate(0, ${HEIGHT})`);
+    axisX['axisCall'] = d3.axisBottom();
+
+    // create element for y-axis
+    const axesY = [];
+    const tmpObj = {};
+
+    tmpObj['label'] = g.append('text')
       .attr('class', 'y axisLabel')
       .attr('y', -60)
       .attr('x', - (HEIGHT - 70) / 2)
@@ -130,153 +227,136 @@ class RunTooltipChart extends Component {
       .attr('transform', 'rotate(-90)')
       .text('Y1');
 
-    const yLabel2 = g.append('text')
-      .attr('class', 'y axisLabel')
-      .attr('y', WIDTH + 60)
-      .attr('x', - (HEIGHT - 70) / 2)
-      .attr('font-size', '20px')
-      .attr('text-anchor', 'middle')
-      .attr('transform', 'rotate(-90)')
-      .text('Y2');
+    tmpObj['scale'] = d3.scaleLinear().range([HEIGHT, 0]);
+    tmpObj['axis'] = g.append('g').attr('class', 'y axis');
+    tmpObj['axisCall'] = d3.axisLeft();
 
-    // scales
-    const x = dateTimeAxis ? d3.scaleTime().range([0, WIDTH]) : d3.scaleLinear().range([0, WIDTH]);
-    const y = d3.scaleLinear().range([HEIGHT, 0]);
+    axesY.push(tmpObj);
 
-    // axis generators
-    const xAxisCall = d3.axisBottom();
-    const yAxisCall = d3.axisLeft();
-    const y2AxisCall = d3.axisRight();
+    if( yData.length > 1 ) { // yData의 크기가 2이상이면 right axis 사용하는 경우가 있는 것임
+      const tmpObj2 = {};
 
-    // axis groups
-    const xAxis = g.append('g')
-      .attr('class', 'x axis')
-      .attr('transform', `translate(0, ${HEIGHT})`);
+      tmpObj2['label'] = g.append('text')
+        .attr('class', 'y axisLabel')
+        .attr('y', WIDTH + 60)
+        .attr('x', - (HEIGHT - 70) / 2)
+        .attr('font-size', '20px')
+        .attr('text-anchor', 'middle')
+        .attr('transform', 'rotate(-90)')
+        .text('Y2');
 
-    const yAxis = g.append('g')
-      .attr('class', 'y axis');
+      tmpObj2['scale'] = d3.scaleLinear().range([HEIGHT, 0]);
+      tmpObj2['axis'] = g.append('g').attr('class', 'y y2 axis').attr('transform', `translate(${WIDTH}, 0)`);;
+      tmpObj2['axisCall'] = d3.axisRight();
 
-    const y2Axis = g.append('g')
-      .attr('class', 'y axis');
+      axesY.push(tmpObj2);
+    }
 
-    return { bisectDate, x, y, xAxisCall, yAxisCall, y2AxisCall, xAxis, yAxis, y2Axis, xLabel, yLabel, yLabel2 };
+    return { bisectDate, axisX, axesY };
   }
 
-  updateDS3Chart = () => {
-    const { ds, y1 } = this.props;
-    const { margin, chartElement, canvasWidth, canvasHeight } = this.state;
-    const { bisectDate, x, y, xAxisCall, yAxisCall, xAxis, yAxis, xLabel, yLabel } = chartElement;
+  updateD3Chart = () => {
+    const { compID, margin, data, chartElement, canvasWidth, canvasHeight } = this.state;
+    const { bisectDate, axisX, axesY } = chartElement;
+    // xData가 null이면 data index임 
+    const { dateTimeAxis, dataSize, xData, yData, extentX, extentY } = data;
 
     const WIDTH = canvasWidth - margin.LEFT - margin.RIGHT;
     const HEIGHT = canvasHeight - margin.TOP - margin.BOTTOM;
 
-    const trans = d3.transition().duration(1000);
+    // axis props: label, scale, axis, axisCall
 
-    const xRange = [0, ds.getRowCount() + 1];
-
-    // Min/Max 계산
-    const y1Range = [0, 0];
-    for(let c = 0; c < y1.length; ++c) {
-      const tmpMM = d3.extent(ds.getDataList(y1[c]));
-
-      if( y1Range[0] > tmpMM[0] ) {
-        y1Range[0] = tmpMM[0];
-      }
-
-      if( y1Range[1] < tmpMM[1] ) {
-        y1Range[1] = tmpMM[1];
-      }
-    }
-
-    y1Range[0] = y1Range[0] / 1.005;
-    y1Range[1] = y1Range[1] * 1.005;
-
-    x.domain(xRange);
-    y.domain(y1Range);
-
-    xAxisCall.scale(x);
-    xAxis.call(xAxisCall)
+    axisX['scale'].domain(extentX);
+    axisX['axisCall'].scale(axisX['scale']);
+    const act = axisX['axis'].call(axisX['axisCall'])
       .selectAll('text')
       .attr('y', '10')
       .attr('x', '-5')
       .attr('text-anchor', 'end');
-    //  .attr('transform', 'rotate(-45)');
 
-    yAxisCall.scale(y);
-    yAxis.call(yAxisCall.tickFormat((v) => numberWithCommas(v)));
+    if( dateTimeAxis ) {
+      act.attr("transform", "rotate(-45)");
+    }
 
-    // yAxis.style('display', 'none');
-  
-    d3.select('.focus').remove();
-    d3.select('.overlay').remove();
+    axesY.map((axis, i) => {
+      axis['scale'].domain(extentY[i]);
+      axis['axisCall'].scale(axis['scale']);
+      axis['axis'].call( axis['axisCall'].tickFormat((v) => numberWithCommas(v)) );
+      return true;
+    });
+
+    const focusDivID = compID + '_focus';
+    const overlayDivID = compID + '_overlay';
+
+    d3.select('.' + focusDivID).remove();
+    d3.select('.' + overlayDivID).remove();
 
     const g = this._g;
-    const focus = g.append('g')
-      .attr('class', 'focus')
+    const xScaler = axisX['scale'];
+  
+    // Line Series Path generator
+    let seriesNo = 0;
+    yData.map((dl, i) => {
+      const yScaler = axesY[i]['scale'];
+      const line = d3.line().x((_, i) => xScaler(xData ? xData[i] : i + 1)).y(d => yScaler(d));
+
+      dl.map((dd, j) => {
+        const lineID = compID + '_line' + i + '_' + j;
+
+        d3.select('.' + lineID).remove();
+
+        g.append('path')
+          .attr('class', lineID)
+          .attr('fill', 'none')
+          .attr('stroke', d3.schemeTableau10[seriesNo % d3.schemeTableau10.length])
+          .attr('stroke-width', '2px')
+          .attr('d', line(dd));
+
+        seriesNo += 1;
+        return seriesNo;
+      });
+      
+      return true;
+    });
+
+    // Axis Label
+    axisX['label'].text('index');
+    axesY[0]['label'].text('values');
+
+    // add guidance line
+    const hoverLine = g.append('g')
+      .attr('class', 'focus ' + focusDivID)
       .style('display', 'none');
 
-    focus.append('line')
+    hoverLine.append('line')
       .attr('class', 'x-hover-line hover-line')
       .attr('y1', 0)
       .attr('y2', HEIGHT);
-  
-    focus.append('line')
-      .attr('class', 'y-hover-line hover-line')
-      .attr('x1', 0)
-      .attr('x2', WIDTH);
-  
-    focus.append('circle')
-      .attr('r', 7.5);
-  
-    focus.append('text')
-      .attr('x', 15)
-      .attr('dy', '.31em');
-  
+
     g.append('rect')
-      .attr('class', 'overlay')
+      .attr('class', 'overlay ' + overlayDivID)
       .attr('width', WIDTH)
       .attr('height', HEIGHT)
-      .on('mouseover', () => focus.style('display', null))
-      .on('mouseout', () => focus.style('display', 'none'))
+      .on('mouseover', () => hoverLine.style('display', null))
+      .on('mouseout', () => hoverLine.style('display', 'none'))
       .on('mousemove', (ev) => {
-        const x0 = x.invert(ev.offsetX - margin.LEFT);
-        // const i = bisectDate(dataTimeFiltered, x0, 1);
-        const i = Math.max(0, Math.min(Math.round(x0) - 1, ds.getRowCount() - 1));
+        const x0 = xScaler.invert(ev.offsetX - margin.LEFT);
 
-        const dataList = ds.getDataList(y1[0]);
+        // X축의 값이 있는 경우
+        if( xData ) {
+          // 날짜 or Label
+          const i = bisectDate(xData, x0, 1);
+          const v0 = xData[i - 1];
+          const v1 = xData[i];
 
-        const d = dataList[i]; // x0 - d0.date > d1.date - x0 ? d1 : d0;
+          if( !v0 || !v1 ) { return; }
 
-        focus.attr('transform', `translate(${x(i + 1)}, ${y(d)})`);
-        focus.select('text').text(d);
-        focus.select(".x-hover-line")
-          .attr("y1", - y(d))
-          .attr("y2", HEIGHT - y(d));
-        focus.select(".y-hover-line")
-          .attr("x1", WIDTH - x(i + 1))
-          .attr("x2", - x(i + 1));
+          hoverLine.attr('transform', `translate(${xScaler(x0 - v0 > v1 - x0 ? v1 : v0)}, 0)`);
+        } else {
+          const i = Math.max(0, Math.min(Math.round(x0) - 1, dataSize - 1));
+          hoverLine.attr('transform', `translate(${xScaler(i + 1)}, 0)`);
+        }
       });
-    
-    // Path generator
-    // for(let c = 0; c < y1.length; ++c) {
-    const dataList = ds.getDataList(y1[0]);
-
-    const line = d3.line()
-      .x((_, i) => x(i + 1))
-      .y(d => y(d));
-
-    d3.select('line1').remove();
-
-    g.append('path')
-      .attr('class', 'line1')
-      .attr('fill', 'none')
-      .attr('stroke', d3.schemeTableau10[0])
-      .attr('stroke-width', '3px')
-      .attr('d', line(dataList));
-
-    xLabel.text('index');
-    yLabel.text('values');
-    // */
   }
 
   render() {

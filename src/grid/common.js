@@ -88,9 +88,9 @@ export const dateToString = (dt, withMilli) => {
   const ss = dt.getSeconds();
   const mi = dt.getMilliseconds();
 
-  if( mi > 0 ) {
-    withMilli = true;
-  }
+  // if( mi > 0 ) {
+  //   withMilli = true;
+  // }
 
   return [ dt.getFullYear(), pad2(MM), pad2(dd) ].join('-')
     + ' ' + [ pad2(hh), pad2(mm), pad2(ss) ].join(':') + (istrue(withMilli) ? '.' + pad3(mi) : '');
@@ -222,6 +222,14 @@ export const tryParseNumber = (str) => {
   return isNaN(n) ? null : n;
 }
 
+
 export const isDateTime = (typeStr) => {
   return 'datetime' === typeStr;
+}
+
+
+// 목록에서 최소/최대값을 계산하여 반환함
+// returns [minimum, maximum]
+export const extent = (list) => {
+  list.reduce((a, d) => a === null ? [d, d] : [Math.min(a[0], d), Math.max(a[1], d)], null);
 }

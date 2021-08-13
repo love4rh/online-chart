@@ -46,15 +46,21 @@ class BasicDataSource {
 
     this.state = {
       columns: columns,
-      dataSize: columns[0].data.length,
+      dataSize: columns.reduce((a, d) => Math.max(a, (d.data && d.data.length) || 0), 0),
       editable: istrue(editable)
     };
 
     this._rowFilter = null;
   }
 
+  // 편집 가능 여부 반환
   isEditable = () => {
     return this.state.editable;
+  }
+
+  // 데이터 추가용 레코드인지 여부 반환
+  isRowForAppend = (index) => {
+    return this.isEditable() && this._getRowCount(true) === index;
   }
 
   getTitle = () => {
@@ -87,7 +93,7 @@ class BasicDataSource {
   }
 
   getRowCount = () => {
-    return this._getRowCount(false);
+    return this._getRowCount(false) + (this.isEditable() ? 1 : 0);
   }
 
   getRowHeight = () => {
@@ -196,8 +202,7 @@ class BasicDataSource {
   getPreferedColumnWidth = (c) => {
     const letterWidth = 7.2;
 
-    const { columns } = this.state;
-    const dataSize = this._getRowCount(true);
+    const dataSize = this.state.dataSize;
 
     let w = Math.max(50, this.getColumnName(c).length * letterWidth + 16); // minimum size of column
 
@@ -223,10 +228,8 @@ class BasicDataSource {
       return false;
     }
 
-    const dataSize = this._getRowCount(true);
-
     for(var i = columns.length; i <= col; ++i) {
-      columns.push({ name: 'untitled-' + i, type: 'Text', data: columns[0].data.map(d => null) });
+      columns.push({ name: 'untitled-' + i, type: 'Text', data: columns[0].data.map(_ => null) });
     }
 
     return true;
@@ -244,7 +247,7 @@ class BasicDataSource {
     const columns = this.state.columns;
     columns[col] = { name, type: nvl(type, columns[col].type) };
 
-    console.log('COLUMN CHANGED', col, columns[col]);
+    // console.log('COLUMN CHANGED', col, columns[col]);
 
     return true;
   }
@@ -277,7 +280,7 @@ class BasicDataSource {
       this.state.dataSize = row + 1;
     }
 
-    console.log('setValue', this.state);
+    // console.log('setValue', this.state);
 
     return true;
   }

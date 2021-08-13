@@ -1175,6 +1175,7 @@ class DataGrid extends Component {
 
     const begin = beginRow;
     const end = Math.min(beginRow + rowPerHeight, rowCount);
+    const editable = ds.isEditable && ds.isEditable();
 
     let dataTagList = [], rhTagList = [];
 
@@ -1224,7 +1225,7 @@ class DataGrid extends Component {
           onColumnEvent={this.handleColumnHeaderEvent}
           fixedType={c >= fixedColumn ? 0 : (c === fixedColumn - 1 ? 2 : 1)}
           fixable={c < fixableCount}
-          editable={ds.isEditable && ds.isEditable()}
+          editable={editable}
         />
       );
 
