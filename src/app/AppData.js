@@ -7,18 +7,21 @@ const appData = {
 
   
   getSampleData: () => {
-    const nowTick = tickCount();
+    const oneDay = 24 * 60 * 60000;
+    const baseTick = tickCount() - oneDay * 30;
     const rindex = [];
 
     for(let i = 0; i < 100; ++i) {
-      rindex.push(0);
+      rindex.push(i + 1);
     }
 
     const columns = [
-      { name: 'Label', type: 'string', data: rindex.map((d, i) => 'P' + i) },
-      { name: 'X', type: 'datetime', data: rindex.map((d, i) => nowTick + 1000 * randomInteger(-80000, 80000)) },
-      { name: 'Y1', type: 'number', data: rindex.map((d, i) => Math.round(randomReal(-1, 1) * 10000) / 10000) },
-      { name: 'Y2', type: 'number', data: rindex.map((d, i) => randomInteger(-1000, 1000)) }
+      { name: 'Label', type: 'string', data: rindex.map(d => 'P' + d) },
+      { name: 'Date', type: 'datetime', data: rindex.map(d => baseTick + d * oneDay) },
+      { name: 'Y1', type: 'number', data: rindex.map(d => Math.round(randomReal(0, d/2) * 10000) / 10000) },
+      { name: 'Y2', type: 'number', data: rindex.map(d => Math.round(randomReal(0, 51 - d/2) * 10000) / 10000) },
+      { name: 'Y3', type: 'number', data: rindex.map(d => randomInteger(-50, d * 10)) },
+      { name: 'Y4', type: 'number', data: rindex.map(d => randomInteger(-50, (100 - d) * 10)) }
     ];
 
     return {

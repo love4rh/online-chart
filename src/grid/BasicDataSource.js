@@ -245,7 +245,7 @@ class BasicDataSource {
     this.extendColumns(col);
 
     const columns = this.state.columns;
-    columns[col] = { name, type: nvl(type, columns[col].type) };
+    columns[col] = { name, type: nvl(type, columns[col].type), data: columns.data };
 
     // console.log('COLUMN CHANGED', col, columns[col]);
 

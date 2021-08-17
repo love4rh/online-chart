@@ -375,7 +375,7 @@ class DataGrid extends Component {
     ;
 
     navigator.clipboard.readText().then((text) => {
-      console.log('Pasted content: ', text);
+      // console.log('Pasted content: ', text);
       const pasted = text.split('\n');
 
       for(let i = 0; i < pasted.length; ++i) {

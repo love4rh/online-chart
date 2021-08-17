@@ -1,3 +1,7 @@
+.chartMain {
+  overflow: hidden;
+}
+
 .axis {
   font: 10px sans-serif;
 }
@@ -9,9 +13,17 @@
   shape-rendering: crispEdges;
 }
 
+.axisLabel {
+  display: none;
+}
+
 .line {
   fill: none;
   stroke-width: 2px;
+}
+
+.selectedLine {
+  stroke-width: 5px;
 }
 
 .overlay {
@@ -31,12 +43,13 @@
   stroke-dasharray: 3,3;
 }
 
-.line {
-  fill: none;
-  stroke-width: 3px;
-  stroke: grey;
-}
-
 .tick {
   font-size: 0.8rem;
+}
+
+.chartToolTip {
+  position: absolute;
+  background-color: plum;
+  width: 100px;
+  height: 100px;
 }

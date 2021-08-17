@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 
 import * as d3 from 'd3';
 
-import { makeid, isvalid, isDateTime, numberWithCommas } from '../grid/common.js';
+import { makeid, isvalid, isDateTime, numberWithCommas, isundef } from '../grid/common.js';
 
 import './styles.scss';
 
@@ -25,7 +25,7 @@ class RunTooltipChart extends Component {
     height: PropTypes.number, // 차트 세로 넢이
     title: PropTypes.string, // 차트 제목
     ds: PropTypes.object.isRequired, // 데이터 소스 (grid/DataSrouce 참고)
-    x: PropTypes.number, // x축 데이터 컬럼. ds의 컬럼 인덱스 중 선택. 없거나 -1이면 데이터 인덱스
+    time: PropTypes.number, // 시간축 데이터 컬럼. ds의 컬럼 인덱스 중 선택. 없거나 -1이면 데이터 인덱스. 날짜가 아니라면 Label로 간주함
     y1: PropTypes.array.isRequired, // left 축에 그릴 데이터 컬럼
     y2: PropTypes.array // right 축에 그릴 데이터 컬럼
   }
@@ -39,7 +39,7 @@ class RunTooltipChart extends Component {
       compID: 'tk' + makeid(8),
       chartDiv: React.createRef(),
       data: this.initializeData(),
-      margin: { LEFT: 100, RIGHT: 100, TOP: 50, BOTTOM: 100 },
+      margin: { LEFT: 80, RIGHT: 80, TOP: 50, BOTTOM: 100 },
       canvasWidth: width,
       canvasHeight: height,
       chartElement: {}
@@ -85,10 +85,10 @@ class RunTooltipChart extends Component {
   }
 
   initializeData = () => {
-    const { ds, x, y1, y2 } = this.props;
+    const { ds, time, y1, y2 } = this.props;
 
-    const withX = isvalid(x) && x !== -1;
-    const dateTimeAxis = withX && isDateTime(ds.getColumnType(x));
+    const withX = isvalid(time) && time !== -1;
+    const dateTimeAxis = withX && isDateTime(ds.getColumnType(time));
     const dataSize = ds._getRowCount(true);
 
     let xData = null;
@@ -103,11 +103,11 @@ class RunTooltipChart extends Component {
         const parseTime = d3.timeParse("%Y-%m-%d %H:%M:%S");
 
         for(let r = 0; r < dataSize; ++r) {
-          tmpX.push([parseTime(ds.getCellValue(x, r)), r]);
+          tmpX.push([parseTime(ds.getCellValue(time, r)), r]);
         }
       } else {
         for(let r = 0; r < dataSize; ++r) {
-          tmpX.push([ds.getCellValue(x, r), r]);
+          tmpX.push([ds.getCellValue(time, r), r]);
         }
       }
 
@@ -121,57 +121,39 @@ class RunTooltipChart extends Component {
       extentX = [0, dataSize + 1];
     }
 
-    const extentY1 = [null, null];
-    const y1Data = y1.map(c => {
-      const data = [];
-      for(let r = 0; r < dataSize; ++r) {
-        const sIdx = sortedX ? sortedX[r] : r;
-        const v = ds.getCellValue(c, sIdx);
+    const yData = [], extentY = [];
 
-        data.push(v);
+    [y1, y2].map((y, i) => {
+      if( isundef(y) ) {
+        return false;
+      }
 
-        if( isvalid(v) ) {
-          if( isvalid(extentY1[0]) ) {
-            extentY1[0] = Math.min(extentY1[0], v);
-            extentY1[1] = Math.max(extentY1[1], v);
-          } else {
-            extentY1[0] = v;
-            extentY1[1] = v;
+      const tmpE = [null, null];
+      yData.push( y.map(c => {
+        const data = [];
+        for(let r = 0; r < dataSize; ++r) {
+          const sIdx = sortedX ? sortedX[r] : r;
+          const v = ds.getCellValue(c, sIdx);
+  
+          data.push(v);
+  
+          if( isvalid(v) ) {
+            if( isvalid(tmpE[0]) ) {
+              tmpE[0] = Math.min(tmpE[0], v);
+              tmpE[1] = Math.max(tmpE[1], v);
+            } else {
+              tmpE[0] = v;
+              tmpE[1] = v;
+            }
           }
         }
-      }
-      return data;
+        return data;
+      }) );
+      extentY.push(tmpE);
+      return true;
     });
-
-    const extentY2 = [null, null];
-    const y2Data = y2 && y2.map(c => {
-      const data = [];
-      for(let r = 0; r < dataSize; ++r) {
-        const sIdx = sortedX ? sortedX[r] : r;
-        const v = ds.getCellValue(c, sIdx);
-
-        data.push(v);
-
-        if( isvalid(v) ) {
-          if( isvalid(extentY2[0]) ) {
-            extentY2[0] = Math.min(extentY2[0], v);
-            extentY2[1] = Math.max(extentY2[1], v);
-          } else {
-            extentY2[0] = v;
-            extentY2[1] = v;
-          }
-        }
-      }
-      return data;
-    });
-
-    const yData = [y1Data];
-
-    if( isvalid(y2Data) ) {
-      yData.push(y2Data);
-    }
     
-    return { dataSize, xData, yData, dateTimeAxis, extentX, extentY:[extentY1, extentY2] };
+    return { dataSize, xData, yData, dateTimeAxis, extentX, extentY };
   }
 
   initializeD3Area = (canvasWidth, canvasHeight) => {
@@ -182,16 +164,17 @@ class RunTooltipChart extends Component {
     const WIDTH = canvasWidth - margin.LEFT - margin.RIGHT;
     const HEIGHT = canvasHeight - margin.TOP - margin.BOTTOM;
 
-    d3.select('.' + compID).remove();
+    if( isvalid(this._svg) ) {
+      this._svg.remove();
+    }
 
     const svg = d3.select(chartDiv.current).append('svg')
       .attr('class', compID)
       .attr('width', canvasWidth)
-      .attr('height', canvasHeight)
-    ;
+      .attr('height', canvasHeight);
 
+    this._svg = svg;
     this._g = svg.append('g')
-      .attr('class', compID)
       .attr('transform', `translate(${margin.LEFT}, ${margin.TOP})`);
 
     const g = this._g;
@@ -256,7 +239,7 @@ class RunTooltipChart extends Component {
   }
 
   updateD3Chart = () => {
-    const { compID, margin, data, chartElement, canvasWidth, canvasHeight } = this.state;
+    const { chartDiv, compID, margin, data, chartElement, canvasWidth, canvasHeight } = this.state;
     const { bisectDate, axisX, axesY } = chartElement;
     // xData가 null이면 data index임 
     const { dateTimeAxis, dataSize, xData, yData, extentX, extentY } = data;
@@ -268,28 +251,28 @@ class RunTooltipChart extends Component {
 
     axisX['scale'].domain(extentX);
     axisX['axisCall'].scale(axisX['scale']);
-    const act = axisX['axis'].call(axisX['axisCall'])
+
+    const act = axisX['axis']
+      .transition()
+      .call(axisX['axisCall']) // .tickFormat(v => { console.log('xtick', v); return v })) // TODO X 값에 따른 표현
       .selectAll('text')
-      .attr('y', '10')
-      .attr('x', '-5')
-      .attr('text-anchor', 'end');
+      .attr('y', '10');
 
     if( dateTimeAxis ) {
-      act.attr("transform", "rotate(-45)");
+      act.attr('x', '-5')
+        .attr('text-anchor', 'end')
+        .transition().attr('transform', 'rotate(-45)');
+    } else {
+      act.attr('x', '0')
+        .attr('text-anchor', 'middle');
     }
 
     axesY.map((axis, i) => {
       axis['scale'].domain(extentY[i]);
       axis['axisCall'].scale(axis['scale']);
-      axis['axis'].call( axis['axisCall'].tickFormat((v) => numberWithCommas(v)) );
+      axis['axis'].transition().call( axis['axisCall'].tickFormat(v => numberWithCommas(v)) );
       return true;
     });
-
-    const focusDivID = compID + '_focus';
-    const overlayDivID = compID + '_overlay';
-
-    d3.select('.' + focusDivID).remove();
-    d3.select('.' + overlayDivID).remove();
 
     const g = this._g;
     const xScaler = axisX['scale'];
@@ -298,30 +281,41 @@ class RunTooltipChart extends Component {
     let seriesNo = 0;
     yData.map((dl, i) => {
       const yScaler = axesY[i]['scale'];
-      const line = d3.line().x((_, i) => xScaler(xData ? xData[i] : i + 1)).y(d => yScaler(d));
+      const line = d3.line().x((_, i) => xScaler(dateTimeAxis ? xData[i] : i + 1)).y(d => yScaler(d));
 
       dl.map((dd, j) => {
-        const lineID = compID + '_line' + i + '_' + j;
+        const lineID = compID + '_line_' + i + '_' + j;
 
         d3.select('.' + lineID).remove();
 
         g.append('path')
+          // .on('mouseover', (ev) => console.log('mouse over', ev))
+          // .on('mouseout', (ev) => console.log('mouse out', ev))
           .attr('class', lineID)
           .attr('fill', 'none')
           .attr('stroke', d3.schemeTableau10[seriesNo % d3.schemeTableau10.length])
           .attr('stroke-width', '2px')
+          .transition()
           .attr('d', line(dd));
 
         seriesNo += 1;
         return seriesNo;
       });
-      
+
       return true;
     });
 
     // Axis Label
     axisX['label'].text('index');
     axesY[0]['label'].text('values');
+
+    // Overlay for handling mouse event
+    const focusDivID = compID + '_focus';
+    const overlayDivID = compID + '_overlay';
+
+    d3.select('.' + focusDivID).remove();
+    d3.select('.' + overlayDivID).remove();
+    d3.select('.chartToolTip').remove();
 
     // add guidance line
     const hoverLine = g.append('g')
@@ -333,21 +327,33 @@ class RunTooltipChart extends Component {
       .attr('y1', 0)
       .attr('y2', HEIGHT);
 
+    const popUpDiv = d3.select(chartDiv.current).append('div').attr('class', compID + ' chartToolTip').style('display', 'none');
+
     g.append('rect')
       .attr('class', 'overlay ' + overlayDivID)
       .attr('width', WIDTH)
       .attr('height', HEIGHT)
-      .on('mouseover', () => hoverLine.style('display', null))
-      .on('mouseout', () => hoverLine.style('display', 'none'))
+      .on('mouseover', () => { hoverLine.style('display', null); popUpDiv.style('display', null); })
+      .on('mouseout', () => { hoverLine.style('display', 'none'); popUpDiv.style('display', 'none'); })
       .on('mousemove', (ev) => {
         const x0 = xScaler.invert(ev.offsetX - margin.LEFT);
+
+        const guideBoxWidth = 100 + 10;
+        const guideBoxHeight = 100 + 10;
+        const maxX = chartDiv.current.offsetLeft + chartDiv.current.offsetWidth;
+        const maxY = chartDiv.current.offsetTop + chartDiv.current.offsetHeight
+        const pX = ev.clientX + guideBoxWidth + margin.LEFT > maxX ? ev.clientX - guideBoxWidth + 10 : ev.clientX;
+        const pY = ev.clientY + guideBoxHeight + margin.BOTTOM > maxY ? ev.clientY - guideBoxHeight + 10 : ev.clientY;
+
+        popUpDiv.attr('style', `left: ${pX}px; top: ${pY}px;`);
+        popUpDiv.html('');
+        popUpDiv.append('p').html(`X: ${x0}`);
 
         // X축의 값이 있는 경우
         if( xData ) {
           // 날짜 or Label
           const i = bisectDate(xData, x0, 1);
-          const v0 = xData[i - 1];
-          const v1 = xData[i];
+          const v0 = xData[i - 1], v1 = xData[i];
 
           if( !v0 || !v1 ) { return; }
 
@@ -361,8 +367,7 @@ class RunTooltipChart extends Component {
 
   render() {
     const { chartDiv } = this.state;
-
-    return <div ref={chartDiv} />;
+    return <div ref={chartDiv} className="chartMain" />;
   }
 }
 
