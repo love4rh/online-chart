@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import { LayoutDivider, DividerDirection } from '../component/LayoutDivider.js';
 
 import { RunTooltipChart } from '../chart/RunTooltipChart.js';
+// import { LineTooltipChart } from '../chart/LineTooltipChart.js';
 
 import { makeid } from '../grid/common.js';
 

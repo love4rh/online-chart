@@ -276,7 +276,70 @@ class RunTooltipChart extends Component {
 
     const g = this._g;
     const xScaler = axisX['scale'];
-  
+
+    // Overlay for handling mouse event
+    const focusDivID = compID + '_focus';
+    const overlayDivID = compID + '_overlay';
+    const tooltipDivID = compID + '_tooltip';
+
+    [focusDivID, overlayDivID, tooltipDivID].map(k => d3.select('.' + k).remove());
+
+    // add guidance line
+    const hoverLine = g.append('g')
+      .classed('focus', true).classed(focusDivID, true)
+      .style('display', 'none');
+
+    hoverLine.append('line')
+      .attr('class', 'x-hover-line hover-line')
+      .attr('y1', 0).attr('y2', HEIGHT);
+
+    const tooltipDiv = d3.select(chartDiv.current)
+      .append('div')
+      .classed('overlay', true).classed(tooltipDivID, true)
+      .attr('class', compID + ' chartToolTip')
+      .style('display', 'none');
+
+    g.append('rect')
+      .classed('overlay', true).classed(overlayDivID, true)
+      .attr('width', WIDTH).attr('height', HEIGHT)
+      .on('mouseover', () => {
+        hoverLine.style('display', null);
+        tooltipDiv.style('display', null);
+      })
+      .on('mouseout', () => {
+        hoverLine.style('display', 'none');
+        tooltipDiv.style('display', 'none');
+      })
+      .on('mousemove', (ev) => {
+        const x0 = xScaler.invert(ev.offsetX - margin.LEFT);
+
+        const guideBoxWidth = 100 + 10;
+        const guideBoxHeight = 100 + 10;
+        const maxX = chartDiv.current.offsetLeft + chartDiv.current.offsetWidth;
+        const maxY = chartDiv.current.offsetTop + chartDiv.current.offsetHeight
+        const pX = ev.clientX + guideBoxWidth + margin.LEFT > maxX ? ev.clientX - guideBoxWidth + 10 : ev.clientX;
+        const pY = ev.clientY + guideBoxHeight + margin.BOTTOM > maxY ? ev.clientY - guideBoxHeight + 10 : ev.clientY;
+
+        tooltipDiv.attr('style', `left: ${pX}px; top: ${pY}px;`);
+        tooltipDiv.html('');
+        tooltipDiv.append('p').text(`X: ${x0}`);
+
+        // X축의 값이 있는 경우
+        if( xData ) {
+          // 날짜 or Label
+          const i = bisectDate(xData, x0, 1);
+          const v0 = xData[i - 1], v1 = xData[i];
+
+          if( !v0 || !v1 ) { return; }
+
+          hoverLine.attr('transform', `translate(${xScaler(x0 - v0 > v1 - x0 ? v1 : v0)}, 0)`);
+        } else {
+          const i = Math.max(0, Math.min(Math.round(x0) - 1, dataSize - 1));
+          hoverLine.attr('transform', `translate(${xScaler(i + 1)}, 0)`);
+        }
+      });
+    // end of overlay
+
     // Line Series Path generator
     let seriesNo = 0;
     yData.map((dl, i) => {
@@ -308,61 +371,6 @@ class RunTooltipChart extends Component {
     // Axis Label
     axisX['label'].text('index');
     axesY[0]['label'].text('values');
-
-    // Overlay for handling mouse event
-    const focusDivID = compID + '_focus';
-    const overlayDivID = compID + '_overlay';
-
-    d3.select('.' + focusDivID).remove();
-    d3.select('.' + overlayDivID).remove();
-    d3.select('.chartToolTip').remove();
-
-    // add guidance line
-    const hoverLine = g.append('g')
-      .attr('class', 'focus ' + focusDivID)
-      .style('display', 'none');
-
-    hoverLine.append('line')
-      .attr('class', 'x-hover-line hover-line')
-      .attr('y1', 0)
-      .attr('y2', HEIGHT);
-
-    const popUpDiv = d3.select(chartDiv.current).append('div').attr('class', compID + ' chartToolTip').style('display', 'none');
-
-    g.append('rect')
-      .attr('class', 'overlay ' + overlayDivID)
-      .attr('width', WIDTH)
-      .attr('height', HEIGHT)
-      .on('mouseover', () => { hoverLine.style('display', null); popUpDiv.style('display', null); })
-      .on('mouseout', () => { hoverLine.style('display', 'none'); popUpDiv.style('display', 'none'); })
-      .on('mousemove', (ev) => {
-        const x0 = xScaler.invert(ev.offsetX - margin.LEFT);
-
-        const guideBoxWidth = 100 + 10;
-        const guideBoxHeight = 100 + 10;
-        const maxX = chartDiv.current.offsetLeft + chartDiv.current.offsetWidth;
-        const maxY = chartDiv.current.offsetTop + chartDiv.current.offsetHeight
-        const pX = ev.clientX + guideBoxWidth + margin.LEFT > maxX ? ev.clientX - guideBoxWidth + 10 : ev.clientX;
-        const pY = ev.clientY + guideBoxHeight + margin.BOTTOM > maxY ? ev.clientY - guideBoxHeight + 10 : ev.clientY;
-
-        popUpDiv.attr('style', `left: ${pX}px; top: ${pY}px;`);
-        popUpDiv.html('');
-        popUpDiv.append('p').html(`X: ${x0}`);
-
-        // X축의 값이 있는 경우
-        if( xData ) {
-          // 날짜 or Label
-          const i = bisectDate(xData, x0, 1);
-          const v0 = xData[i - 1], v1 = xData[i];
-
-          if( !v0 || !v1 ) { return; }
-
-          hoverLine.attr('transform', `translate(${xScaler(x0 - v0 > v1 - x0 ? v1 : v0)}, 0)`);
-        } else {
-          const i = Math.max(0, Math.min(Math.round(x0) - 1, dataSize - 1));
-          hoverLine.attr('transform', `translate(${xScaler(i + 1)}, 0)`);
-        }
-      });
   }
 
   render() {
