@@ -118,6 +118,7 @@ class RunTooltipChart extends Component {
       }
     }
 
+    let cCount = 0;
     const yData = [], extentY = [];
 
     [y1, y2].map((y, i) => {
@@ -126,8 +127,13 @@ class RunTooltipChart extends Component {
       }
 
       const tmpE = [null, null];
+
       yData.push( y.map(c => {
         const data = [];
+        const title = ds.getColumnName(c);
+        const color = this.getSeriesColor(cCount);
+        cCount += 1;
+
         for(let r = 0; r < dataSize; ++r) {
           const sIdx = sortedX ? sortedX[r] : r;
           const v = ds.getCellValue(c, sIdx);
@@ -144,7 +150,7 @@ class RunTooltipChart extends Component {
             }
           }
         }
-        return data;
+        return { data, title, color };
       }) );
       extentY.push(tmpE);
       return true;
@@ -323,30 +329,39 @@ class RunTooltipChart extends Component {
         }
 
         // Tooltip box
-        const guideBoxWidth = 100 + 10;
-        const guideBoxHeight = 100 + 10;
+        tooltipBox.html(''); // 기존 툴팁 삭제
+
+        tooltipBox.append('div')
+          .classed('tooltipItem', true)
+          .text(`X: ${xData ? xData[dataIdx] : dataIdx}`); // TODO DateTime 처리
+
+        let sCount = 1;
+        yData.map(dl => {
+          dl.map(dd => {
+            tooltipBox.append('div')
+              .classed('tooltipItem', true)
+              .style('color', dd.color)
+              .style('opacity', '0.8')
+              .text(`${dd.title}: ${dd.data[dataIdx]}`);
+
+            sCount += 1;
+            return true;
+          });
+          return true;
+        });
+
+        const guideBoxWidth = 120 + 10;
+        const guideBoxHeight = sCount * 24 + 10;
         const maxX = chartDiv.current.offsetLeft + chartDiv.current.offsetWidth;
         const maxY = chartDiv.current.offsetTop + chartDiv.current.offsetHeight
         const pX = ev.clientX + guideBoxWidth + margin.LEFT > maxX ? ev.clientX - guideBoxWidth + 5 : ev.clientX + 10;
         const pY = ev.clientY + guideBoxHeight + margin.BOTTOM > maxY ? ev.clientY - guideBoxHeight + 10 : ev.clientY + 10;
 
         tooltipBox.attr('style', `left: ${pX}px; top: ${pY}px;`);
-        tooltipBox.html(''); // 기존 툴팁 삭제
-
-        let sNo = 0;
-        yData.map(dl => {
-          dl.map(dd => {
-            tooltipBox.append('div').style('background-color', this.getSeriesColor(sNo)).style('opacity', '0.8').text(`X: ${dd[dataIdx]}`);
-            sNo += 1;
-            return true;
-          });
-          return true;
-        });
       });
     // end of overlay
 
     // Line Series Path generator
-    let seriesNo = 0;
     yData.map((dl, i) => {
       const yScaler = axesY[i]['scale'];
       const line = d3.line().x((_, i) => xScaler(dateTimeAxis ? xData[i] : i + 1)).y(d => yScaler(d));
@@ -361,14 +376,13 @@ class RunTooltipChart extends Component {
           .on('mouseout', this.makeLineOverCB(lineID, false) )
           .classed(lineID, true)
           .attr('fill', 'none')
-          .attr('stroke', this.getSeriesColor(seriesNo))
+          .attr('stroke', dd.color)
           .attr('stroke-width', '2px')
           .attr('opacity', '0.8')
           .transition()
-          .attr('d', line(dd));
+          .attr('d', line(dd.data));
 
-        seriesNo += 1;
-        return seriesNo;
+        return dd.title;
       });
 
       return true;
