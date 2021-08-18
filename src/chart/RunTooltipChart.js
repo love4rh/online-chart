@@ -84,6 +84,8 @@ class RunTooltipChart extends Component {
     this.updateD3Chart();
   }
 
+  getSeriesColor = (idx) => d3.schemeTableau10[idx % d3.schemeTableau10.length]
+
   initializeData = () => {
     const { ds, time, y1, y2 } = this.props;
 
@@ -93,32 +95,27 @@ class RunTooltipChart extends Component {
 
     let xData = null;
     let sortedX = null;
-    let extentX = [null, null];
+    let extentX = [0, dataSize + 1];
 
-    if( withX ) {
+    if( dateTimeAxis ) {
       const tmpX = [];
+      // 2021-08-12 21:03:43
+      const parseTime = d3.timeParse("%Y-%m-%d %H:%M:%S");
 
-      if( dateTimeAxis ) {
-        // 2021-08-12 21:03:43
-        const parseTime = d3.timeParse("%Y-%m-%d %H:%M:%S");
-
-        for(let r = 0; r < dataSize; ++r) {
-          tmpX.push([parseTime(ds.getCellValue(time, r)), r]);
-        }
-      } else {
-        for(let r = 0; r < dataSize; ++r) {
-          tmpX.push([ds.getCellValue(time, r), r]);
-        }
+      for(let r = 0; r < dataSize; ++r) {
+        tmpX.push([parseTime(ds.getCellValue(time, r)), r]);
       }
 
       tmpX.sort( (a, b) => a[0] > b[0] ? 1 : (a[0] < b[0] ? -1 : 0) );
 
       xData = tmpX.map(d => d[0]);
       sortedX = tmpX.map(d => d[1]);
-
       extentX = [xData[0], xData[xData.length - 1]];
-    } else {
-      extentX = [0, dataSize + 1];
+    } else if( withX ) {
+      xData = [];
+      for(let r = 0; r < dataSize; ++r) {
+        xData.push(ds.getCellValue(time, r));
+      }
     }
 
     const yData = [], extentY = [];
@@ -241,7 +238,8 @@ class RunTooltipChart extends Component {
   updateD3Chart = () => {
     const { chartDiv, compID, margin, data, chartElement, canvasWidth, canvasHeight } = this.state;
     const { bisectDate, axisX, axesY } = chartElement;
-    // xData가 null이면 data index임 
+
+    // xData가 null이면 data index임. xData가 null이 아니고 dateTimeAxis가 false이면 label임.
     const { dateTimeAxis, dataSize, xData, yData, extentX, extentY } = data;
 
     const WIDTH = canvasWidth - margin.LEFT - margin.RIGHT;
@@ -252,13 +250,15 @@ class RunTooltipChart extends Component {
     axisX['scale'].domain(extentX);
     axisX['axisCall'].scale(axisX['scale']);
 
+    const indexAxisHasLabel = isvalid(xData) && !dateTimeAxis;
+
     const act = axisX['axis']
       .transition()
-      .call(axisX['axisCall']) // .tickFormat(v => { console.log('xtick', v); return v })) // TODO X 값에 따른 표현
+      .call(!indexAxisHasLabel ? axisX['axisCall'] : axisX['axisCall'].tickFormat(idx => xData[idx]))
       .selectAll('text')
       .attr('y', '10');
 
-    if( dateTimeAxis ) {
+    if( dateTimeAxis || indexAxisHasLabel ) {
       act.attr('x', '-5')
         .attr('text-anchor', 'end')
         .transition().attr('transform', 'rotate(-45)');
@@ -293,50 +293,55 @@ class RunTooltipChart extends Component {
       .attr('class', 'x-hover-line hover-line')
       .attr('y1', 0).attr('y2', HEIGHT);
 
-    const tooltipDiv = d3.select(chartDiv.current)
+    const tooltipBox = d3.select(chartDiv.current)
       .append('div')
-      .classed('overlay', true).classed(tooltipDivID, true)
-      .attr('class', compID + ' chartToolTip')
+      .classed('chartToolTip', true).classed(compID, true)
       .style('display', 'none');
 
     g.append('rect')
-      .classed('overlay', true).classed(overlayDivID, true)
-      .attr('width', WIDTH).attr('height', HEIGHT)
-      .on('mouseover', () => {
-        hoverLine.style('display', null);
-        tooltipDiv.style('display', null);
-      })
-      .on('mouseout', () => {
-        hoverLine.style('display', 'none');
-        tooltipDiv.style('display', 'none');
-      })
+      .attr('class', 'overlay ' + overlayDivID)
+      .attr('width', WIDTH)
+      .attr('height', HEIGHT)
+      .on('mouseover', () => { hoverLine.style('display', null); tooltipBox.style('display', null); })
+      .on('mouseout', () => { hoverLine.style('display', 'none'); tooltipBox.style('display', 'none'); })
       .on('mousemove', (ev) => {
         const x0 = xScaler.invert(ev.offsetX - margin.LEFT);
 
-        const guideBoxWidth = 100 + 10;
-        const guideBoxHeight = 100 + 10;
-        const maxX = chartDiv.current.offsetLeft + chartDiv.current.offsetWidth;
-        const maxY = chartDiv.current.offsetTop + chartDiv.current.offsetHeight
-        const pX = ev.clientX + guideBoxWidth + margin.LEFT > maxX ? ev.clientX - guideBoxWidth + 10 : ev.clientX;
-        const pY = ev.clientY + guideBoxHeight + margin.BOTTOM > maxY ? ev.clientY - guideBoxHeight + 10 : ev.clientY;
+        let dataIdx = 0;
 
-        tooltipDiv.attr('style', `left: ${pX}px; top: ${pY}px;`);
-        tooltipDiv.html('');
-        tooltipDiv.append('p').text(`X: ${x0}`);
-
-        // X축의 값이 있는 경우
-        if( xData ) {
-          // 날짜 or Label
-          const i = bisectDate(xData, x0, 1);
-          const v0 = xData[i - 1], v1 = xData[i];
+        // 날짜 축인 경우
+        if( dateTimeAxis ) {
+          dataIdx = bisectDate(xData, x0, 1);
+          const v0 = xData[dataIdx - 1], v1 = xData[dataIdx];
 
           if( !v0 || !v1 ) { return; }
 
           hoverLine.attr('transform', `translate(${xScaler(x0 - v0 > v1 - x0 ? v1 : v0)}, 0)`);
         } else {
-          const i = Math.max(0, Math.min(Math.round(x0) - 1, dataSize - 1));
-          hoverLine.attr('transform', `translate(${xScaler(i + 1)}, 0)`);
+          dataIdx = Math.max(0, Math.min(Math.round(x0) - 1, dataSize - 1));
+          hoverLine.attr('transform', `translate(${xScaler(dataIdx + 1)}, 0)`);
         }
+
+        // Tooltip box
+        const guideBoxWidth = 100 + 10;
+        const guideBoxHeight = 100 + 10;
+        const maxX = chartDiv.current.offsetLeft + chartDiv.current.offsetWidth;
+        const maxY = chartDiv.current.offsetTop + chartDiv.current.offsetHeight
+        const pX = ev.clientX + guideBoxWidth + margin.LEFT > maxX ? ev.clientX - guideBoxWidth + 5 : ev.clientX + 10;
+        const pY = ev.clientY + guideBoxHeight + margin.BOTTOM > maxY ? ev.clientY - guideBoxHeight + 10 : ev.clientY + 10;
+
+        tooltipBox.attr('style', `left: ${pX}px; top: ${pY}px;`);
+        tooltipBox.html(''); // 기존 툴팁 삭제
+
+        let sNo = 0;
+        yData.map(dl => {
+          dl.map(dd => {
+            tooltipBox.append('div').style('background-color', this.getSeriesColor(sNo)).style('opacity', '0.8').text(`X: ${dd[dataIdx]}`);
+            sNo += 1;
+            return true;
+          });
+          return true;
+        });
       });
     // end of overlay
 
@@ -352,12 +357,13 @@ class RunTooltipChart extends Component {
         d3.select('.' + lineID).remove();
 
         g.append('path')
-          // .on('mouseover', (ev) => console.log('mouse over', ev))
-          // .on('mouseout', (ev) => console.log('mouse out', ev))
-          .attr('class', lineID)
+          .on('mouseover', this.makeLineOverCB(lineID, true) )
+          .on('mouseout', this.makeLineOverCB(lineID, false) )
+          .classed(lineID, true)
           .attr('fill', 'none')
-          .attr('stroke', d3.schemeTableau10[seriesNo % d3.schemeTableau10.length])
+          .attr('stroke', this.getSeriesColor(seriesNo))
           .attr('stroke-width', '2px')
+          .attr('opacity', '0.8')
           .transition()
           .attr('d', line(dd));
 
@@ -371,6 +377,10 @@ class RunTooltipChart extends Component {
     // Axis Label
     axisX['label'].text('index');
     axesY[0]['label'].text('values');
+  }
+
+  makeLineOverCB = (lid, selected) => () => {
+    d3.select('.' + lid).classed('selectedLine', selected);
   }
 
   render() {

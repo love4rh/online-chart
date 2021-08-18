@@ -20,10 +20,12 @@
 .line {
   fill: none;
   stroke-width: 2px;
+  opacity: 0.8;
 }
 
 .selectedLine {
-  stroke-width: 5px;
+  stroke-width: 3px;
+  opacity: 1.0;
 }
 
 .overlay {
