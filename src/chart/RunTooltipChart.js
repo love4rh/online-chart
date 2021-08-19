@@ -5,6 +5,8 @@ import * as d3 from 'd3';
 
 import { makeid, isvalid, isDateTime, numberWithCommas, isundef } from '../grid/common.js';
 
+import { RangeSlider } from '../component/RangeSlider.js';
+
 import './styles.scss';
 
 
@@ -41,10 +43,11 @@ class RunTooltipChart extends Component {
       data: this.initializeData(),
       margin: { LEFT: 80, RIGHT: 80, TOP: 50, BOTTOM: 100 },
       canvasWidth: width,
-      canvasHeight: height,
+      canvasHeight: height - 36, // TODO 36 조정
       chartElement: {}
     };
 
+    this.hideTimeOut = null;
 
     console.log('RunChart construct', this.state);
   }
@@ -299,66 +302,74 @@ class RunTooltipChart extends Component {
       .attr('class', 'x-hover-line hover-line')
       .attr('y1', 0).attr('y2', HEIGHT);
 
+    hoverLine.append('line')
+      .attr('class', 'y-hover-line hover-line')
+      .attr('x1', 0).attr('x2', WIDTH);
+
     const tooltipBox = d3.select(chartDiv.current)
       .append('div')
-      .classed('chartToolTip', true).classed(compID, true)
+      .classed('chartToolTip', true).classed(tooltipDivID, true)
       .style('display', 'none');
+
+    const cbShowToolTip = (ev) => {
+      let dataIdx = 0;
+      const x0 = xScaler.invert(ev.offsetX - margin.LEFT);
+
+      // 날짜 축인 경우
+      if( dateTimeAxis ) {
+        dataIdx = bisectDate(xData, x0, 1);
+        const v0 = xData[dataIdx - 1], v1 = xData[dataIdx];
+
+        if( !v0 || !v1 ) { return; }
+
+        hoverLine.select('.x-hover-line').attr('transform', `translate(${xScaler(x0 - v0 > v1 - x0 ? v1 : v0)}, 0)`);
+      } else {
+        dataIdx = Math.max(0, Math.min(Math.round(x0) - 1, dataSize - 1));
+        hoverLine.select('.x-hover-line').attr('transform', `translate(${xScaler(dataIdx + 1)}, 0)`);
+      }
+
+      hoverLine.select('.y-hover-line').attr('transform', `translate(0, ${ev.offsetY - margin.TOP})`);
+
+      // Tooltip box
+      tooltipBox.html(''); // 기존 툴팁 삭제
+
+      tooltipBox.append('div')
+        .classed('tooltipItem', true)
+        .text(`X: ${xData ? xData[dataIdx] : dataIdx}`); // TODO DateTime 처리
+
+      let sCount = 1;
+      yData.map(dl => {
+        dl.map(dd => {
+          tooltipBox.append('div')
+            .classed('tooltipItem', true)
+            .style('color', dd.color)
+            .style('opacity', '0.8')
+            .text(`${dd.title}: ${dd.data[dataIdx]}`);
+
+          sCount += 1;
+          return true;
+        });
+        return true;
+      });
+
+      const guideBoxWidth = 120 + 10;
+      const guideBoxHeight = sCount * 24 + 10;
+      const maxX = chartDiv.current.offsetLeft + chartDiv.current.offsetWidth;
+      const maxY = chartDiv.current.offsetTop + chartDiv.current.offsetHeight
+      const pX = ev.clientX + guideBoxWidth + margin.LEFT > maxX ? ev.clientX - guideBoxWidth + 5 : ev.clientX + 10;
+      const pY = ev.clientY + guideBoxHeight + margin.BOTTOM > maxY ? ev.clientY - guideBoxHeight + 10 : ev.clientY + 10;
+
+      tooltipBox.attr('style', `left: ${pX}px; top: ${pY}px;`);
+    }; // end of callback for showing tooptip
 
     g.append('rect')
       .attr('class', 'overlay ' + overlayDivID)
       .attr('width', WIDTH)
       .attr('height', HEIGHT)
       .on('mouseover', () => { hoverLine.style('display', null); tooltipBox.style('display', null); })
-      .on('mouseout', () => { hoverLine.style('display', 'none'); tooltipBox.style('display', 'none'); })
-      .on('mousemove', (ev) => {
-        const x0 = xScaler.invert(ev.offsetX - margin.LEFT);
-
-        let dataIdx = 0;
-
-        // 날짜 축인 경우
-        if( dateTimeAxis ) {
-          dataIdx = bisectDate(xData, x0, 1);
-          const v0 = xData[dataIdx - 1], v1 = xData[dataIdx];
-
-          if( !v0 || !v1 ) { return; }
-
-          hoverLine.attr('transform', `translate(${xScaler(x0 - v0 > v1 - x0 ? v1 : v0)}, 0)`);
-        } else {
-          dataIdx = Math.max(0, Math.min(Math.round(x0) - 1, dataSize - 1));
-          hoverLine.attr('transform', `translate(${xScaler(dataIdx + 1)}, 0)`);
-        }
-
-        // Tooltip box
-        tooltipBox.html(''); // 기존 툴팁 삭제
-
-        tooltipBox.append('div')
-          .classed('tooltipItem', true)
-          .text(`X: ${xData ? xData[dataIdx] : dataIdx}`); // TODO DateTime 처리
-
-        let sCount = 1;
-        yData.map(dl => {
-          dl.map(dd => {
-            tooltipBox.append('div')
-              .classed('tooltipItem', true)
-              .style('color', dd.color)
-              .style('opacity', '0.8')
-              .text(`${dd.title}: ${dd.data[dataIdx]}`);
-
-            sCount += 1;
-            return true;
-          });
-          return true;
-        });
-
-        const guideBoxWidth = 120 + 10;
-        const guideBoxHeight = sCount * 24 + 10;
-        const maxX = chartDiv.current.offsetLeft + chartDiv.current.offsetWidth;
-        const maxY = chartDiv.current.offsetTop + chartDiv.current.offsetHeight
-        const pX = ev.clientX + guideBoxWidth + margin.LEFT > maxX ? ev.clientX - guideBoxWidth + 5 : ev.clientX + 10;
-        const pY = ev.clientY + guideBoxHeight + margin.BOTTOM > maxY ? ev.clientY - guideBoxHeight + 10 : ev.clientY + 10;
-
-        tooltipBox.attr('style', `left: ${pX}px; top: ${pY}px;`);
-      });
+      // [아래] line의 mouse over 이벤트 시 발생하여 가이드 선이 사라지는 현상이 있어 Timeout을 두어 처리하였음
+      .on('mouseout', () => this.hideTimeOut = setTimeout(() => { hoverLine.style('display', 'none'); tooltipBox.style('display', 'none'); this.hideTimeOut = null; }, 100) )
+      .on('mousemove', cbShowToolTip);
     // end of overlay
 
     // Line Series Path generator
@@ -372,8 +383,14 @@ class RunTooltipChart extends Component {
         d3.select('.' + lineID).remove();
 
         g.append('path')
-          .on('mouseover', this.makeLineOverCB(lineID, true) )
-          .on('mouseout', this.makeLineOverCB(lineID, false) )
+          .on('mouseover', (ev) => {
+            d3.select('.' + lineID).classed('selectedLine', true);
+            if( isvalid(this.hideTimeOut) ) {
+              clearTimeout(this.hideTimeOut);
+            }
+            cbShowToolTip(ev);
+           })
+          .on('mouseout', () => d3.select('.' + lineID).classed('selectedLine', false) )
           .classed(lineID, true)
           .attr('fill', 'none')
           .attr('stroke', dd.color)
@@ -393,13 +410,18 @@ class RunTooltipChart extends Component {
     axesY[0]['label'].text('values');
   }
 
-  makeLineOverCB = (lid, selected) => () => {
-    d3.select('.' + lid).classed('selectedLine', selected);
-  }
-
   render() {
+    const { width } = this.props;
     const { chartDiv } = this.state;
-    return <div ref={chartDiv} className="chartMain" />;
+
+    return (
+      <div className="chartMain">
+        <div ref={chartDiv} />
+        <div style={{ width:`${width}px`, height:'36px' }}>
+          <RangeSlider />
+        </div>
+      </div>
+    );
   }
 }
 

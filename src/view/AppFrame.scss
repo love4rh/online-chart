@@ -34,4 +34,5 @@
 .rightPane {
   display: flex;
   background-color: $chartBGColor;
+  flex-direction: column;
 }
