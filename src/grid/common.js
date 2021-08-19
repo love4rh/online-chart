@@ -233,3 +233,8 @@ export const isDateTime = (typeStr) => {
 export const extent = (list) => {
   list.reduce((a, d) => a === null ? [d, d] : [Math.min(a[0], d), Math.max(a[1], d)], null);
 }
+
+
+export const cp = (obj) => {
+  return JSON.parse(JSON.stringify(obj));
+}

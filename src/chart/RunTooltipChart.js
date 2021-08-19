@@ -412,13 +412,14 @@ class RunTooltipChart extends Component {
 
   render() {
     const { width } = this.props;
-    const { chartDiv } = this.state;
+    const { data, chartDiv } = this.state;
+    const { dataSize, xData, yData, dateTimeAxis, extentX, extentY } = data;
 
     return (
       <div className="chartMain">
         <div ref={chartDiv} />
         <div style={{ width:`${width}px`, height:'36px' }}>
-          <RangeSlider />
+          <RangeSlider range={[1, dataSize]} />
         </div>
       </div>
     );
