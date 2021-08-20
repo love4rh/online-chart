@@ -40,6 +40,12 @@ class RangeSlider extends Component {
     };
 
     this._mainDiv = React.createRef();
+
+    this._mouseHandler = {
+      'left': { 'move': this.handleMouseMove('left'), 'up': this.handleMouseUp('left') },
+      'right': { 'move': this.handleMouseMove('right'), 'up': this.handleMouseUp('right') },
+      'track': { 'move': this.handleMouseMove('track'), 'up': this.handleMouseUp('track') }
+    };
   }
 
   componentDidMount () {
@@ -53,7 +59,7 @@ class RangeSlider extends Component {
   }
 
   // pos: mouse postion
-  calculatePosition = (pos, gap) => {
+  calculatePosition = (pos) => {
     const { vertical, range } = this.state;
 
     let rp;
@@ -63,11 +69,7 @@ class RangeSlider extends Component {
       rp = (pos - offsetTop) / offsetHeight * (range[1] - range[0]);
     } else {
       const { offsetLeft, offsetWidth } = this._mainDiv.current;
-      rp = (pos - offsetLeft) / offsetWidth * (range[1] - range[0])
-    }
-
-    if( istrue(gap) ) {
-      return rp;
+      rp = (pos - offsetLeft) / offsetWidth * (range[1] - range[0]);
     }
 
     rp += range[0];
@@ -75,20 +77,32 @@ class RangeSlider extends Component {
     return Math.max(range[0], Math.min(rp, range[1]));
   }
 
+  calculateGap = (gap) => {
+    const { vertical, range } = this.state;
+
+    return vertical
+      ? gap / this._mainDiv.current.offsetHeight * (range[1] - range[0])
+      : gap / this._mainDiv.current.offsetWidth * (range[1] - range[0]);
+  }
+
   handleMouseDown = (type) => (ev) => {
+    if( isvalid(this._mainDiv.current) ) {
+      this._mainDiv.current.focus();
+    }
+
     ev.preventDefault();
     ev.stopPropagation();
 
     // capturing mouse event (refer: http://code.fitness/post/2016/06/capture-mouse-events.html)
     document.body.style['pointer-events'] = 'none';
-    document.addEventListener('mousemove', this.handleMouseMove(type), { capture: true });
-    document.addEventListener('mouseup', this.handleMouseUp(type), { capture: true });
+    document.addEventListener('mousemove', this._mouseHandler[type]['move'], { capture: true });
+    document.addEventListener('mouseup', this._mouseHandler[type]['up'], { capture: true });
 
     this.setState({ mouseState: { type, sX: ev.clientX, sY: ev.clientY, sRange: cp(this.state.selectedRange) } });
   }
 
   handleMouseMove = (type) => (ev) => {
-    const { vertical, mouseState, selectedRange, range } = this.state;
+    const { vertical, mouseState } = this.state;
 
     if( isundef(mouseState) || mouseState.type !== type ) {
       return;
@@ -99,48 +113,80 @@ class RangeSlider extends Component {
 
     if( type === 'track' ) {
       const { sX, sY, sRange } = mouseState;
-      const gap = this.calculatePosition(vertical ? ev.clientY - sY : ev.clientX - sX, true);
-      if( sRange[0] + gap >= range[0] && sRange[1] + gap <= range[1] ) {
-        selectedRange[0] = sRange[0] + gap;
-        selectedRange[1] = sRange[1] + gap;
-      }
-      console.log('mouse move', sX, ev.clientX, ev.offsetX, gap, sRange, selectedRange);
+      this._moveSlider(type, vertical ? ev.clientY - sY : ev.clientX - sX, false, sRange);
     } else {
-      selectedRange[type === 'left' ? 0 : 1] = this.calculatePosition(vertical ? ev.clientY : ev.clientX, false);
+      this._moveSlider(type, vertical ? ev.clientY : ev.clientX, false);
     }
-
-    this.setState({ selectedRange: selectedRange });
   }
 
   handleMouseUp = (type) => (ev) => {
-    const { vertical, mouseState, selectedRange, range } = this.state;
+    const { vertical, mouseState } = this.state;
 
     if( isundef(mouseState) || mouseState.type !== type ) {
       return;
     }
 
     document.body.style['pointer-events'] = 'auto';
-    document.removeEventListener('mousemove', this.handleMouseMove(type), { capture: true });
-    document.removeEventListener('mouseup', this.handleMouseUp(type), { capture: true });
-
-    const { onEvent } = this.props;
+    document.removeEventListener('mousemove', this._mouseHandler[type]['move'], { capture: true });
+    document.removeEventListener('mouseup', this._mouseHandler[type]['up'], { capture: true });
 
     if( type === 'track' ) {
       const { sX, sY, sRange } = mouseState;
-      const gap = this.calculatePosition(vertical ? ev.clientY - sY : ev.clientX - sX, true);
+      this._moveSlider(type, vertical ? ev.clientY - sY : ev.clientX - sX, true, sRange);
+    } else {
+      this._moveSlider(type, vertical ? ev.clientY : ev.clientX, true);
+    }
+  }
+
+  // type이 both이면 value는 이동 비율((0, 1))임
+  _moveSlider = (type, value, trigger, sRange) => {
+    const { onEvent } = this.props;
+    const { selectedRange, range } = this.state;
+
+    if( type === 'track' ) {
+      const gap = this.calculateGap(value);
       if( sRange[0] + gap >= range[0] && sRange[1] + gap <= range[1] ) {
         selectedRange[0] = sRange[0] + gap;
         selectedRange[1] = sRange[1] + gap;
       }
+    } else if( type === 'both' ) {
+      const mv = (range[1] - range[0]) * value;
+      selectedRange[0] = Math.max(range[0], Math.min(selectedRange[0] - mv, range[1]));
+      selectedRange[1] = Math.max(range[0], Math.min(selectedRange[1] + mv, range[1]));
     } else {
-      selectedRange[type === 'left' ? 0 : 1] = this.calculatePosition(vertical ? ev.clientY : ev.clientX);
+      selectedRange[type === 'left' ? 0 : 1] = this.calculatePosition(value);
     }
 
-    if( onEvent ) {
+    if( trigger && onEvent ) {
       onEvent('rangeChanged', [ Math.min(selectedRange[0], selectedRange[1]), Math.max(selectedRange[0], selectedRange[1]) ]);
     }
 
-    this.setState({ mouseState: null, selectedRange: selectedRange });
+    if( trigger ) {
+      this.setState({ mouseState: null, selectedRange: selectedRange });
+    } else {
+      this.setState({ selectedRange: selectedRange });
+    }
+  }
+
+  handleKeyDown = (ev) => {
+    const { vertical, selectedRange } = this.state;
+    const { keyCode } = ev;
+
+    // console.log('keyDown', keyCode);
+
+    const r = 0.05;
+
+    if( keyCode === 37 ) { // left (왼쪽 이동)
+      const w = vertical ? this._mainDiv.current.offsetHeight : this._mainDiv.current.offsetWidth;
+      this._moveSlider('track', - w * r, true, selectedRange);
+    } else if( keyCode === 39 ) { // right (오른쪽 이동)
+      const w = vertical ? this._mainDiv.current.offsetHeight : this._mainDiv.current.offsetWidth;
+      this._moveSlider('track', w * r, true, selectedRange);
+    } else if( keyCode === 38 ) { // up (선택 범위 10% 증가)
+      this._moveSlider('both', r, true);
+    } else if( keyCode === 40 ) { // down (선택 범위 10% 감소)
+      this._moveSlider('both', -r, true);
+    }
   }
 
   render () {
@@ -163,7 +209,12 @@ class RangeSlider extends Component {
     const actType = isvalid(mouseState) && mouseState.type;
 
   	return (
-  		<div ref={this._mainDiv} tabIndex="1" className="rangeSliderMain">
+  		<div
+        ref={this._mainDiv}
+        tabIndex="1"
+        className="rangeSliderMain"
+        onKeyDown={this.handleKeyDown}
+      >
         <span className="rangeRail" />
         <span
           className="rangeTrack"

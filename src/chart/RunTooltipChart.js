@@ -11,6 +11,8 @@ import './styles.scss';
 
 
 
+const sliderSize = 28;
+
 /**
  * Run Chart
  * props: {
@@ -35,15 +37,15 @@ class RunTooltipChart extends Component {
   constructor(props) {
     super(props);
 
-    const { width, height } = this.props;
+    const { width, height, y2 } = this.props;
 
     this.state = {
       compID: 'tk' + makeid(8),
       chartDiv: React.createRef(),
       data: this.initializeData(),
-      margin: { LEFT: 80, RIGHT: 80, TOP: 50, BOTTOM: 100 },
-      canvasWidth: width,
-      canvasHeight: height - 36, // TODO 36 조정
+      margin: { LEFT: 70, RIGHT: 70, TOP: 50, BOTTOM: 50 },
+      canvasWidth: width - sliderSize - (isvalid(y2) && y2.length > 0 ? sliderSize : 0),
+      canvasHeight: height,
       chartElement: {}
     };
 
@@ -65,7 +67,10 @@ class RunTooltipChart extends Component {
 
   static getDerivedStateFromProps(nextProps, prevState) {
     if( nextProps.width !== prevState.canvasWidth || nextProps.height !== prevState.canvasHeight ) {
-      return { canvasWidth: nextProps.width, canvasHeight: nextProps.height };
+      return {
+        canvasWidth: nextProps.width - sliderSize - (isvalid(nextProps.y2) && nextProps.y2.length > 0 ? sliderSize : 0),
+        canvasHeight: nextProps.height
+      };
     }
 
     return null;
@@ -429,14 +434,49 @@ class RunTooltipChart extends Component {
   }
 
   render() {
-    const { width } = this.props;
-    const { data, chartDiv } = this.state;
+    const { width, height } = this.props;
+    const { data, chartDiv, margin } = this.state;
     const { xData, dateTimeAxis, extentX, extentY } = data;
+
+    const a = 9, p = 8;
+    const hasY2 = extentY.length > 1;
 
     return (
       <div className="chartMain">
-        <div ref={chartDiv} />
-        <div style={{ width:`${width - 16}px`, height:'36px', padding:'0px 8px' }}>
+        <div className="chartTopDiv">
+          <div style={{
+            'width': `${sliderSize}px`,
+            'padding': `${p}px0 `,
+            'margin': `${margin.TOP - 10}px 0 ${margin.BOTTOM - 10}px 0`
+          }}>
+            <RangeSlider
+              valueRange={extentY[0]}
+              onEvent={this.handleSliderEvent('Y1')}
+              vertical={true}
+            />
+          </div>
+          <div ref={chartDiv} />
+          { hasY2 &&
+            <div style={{
+              'width': `${sliderSize}px`,
+              'padding': `${p}px0 `,
+              'margin': `${margin.TOP - 10}px 0 ${margin.BOTTOM - 10}px 0`
+            }}>
+              <RangeSlider
+                valueRange={extentY[1]}
+                onEvent={this.handleSliderEvent('Y1')}
+                vertical={true}
+              />
+            </div>
+          }
+        </div>
+        <div style={{
+          'width': `${width - margin.LEFT - margin.RIGHT + (a - p) * 2 - sliderSize - (hasY2 ? sliderSize : 0)}px`,
+          'height': `${sliderSize}px`,
+          'flexBasis': `${sliderSize}px`,
+          'padding': `0 ${p}px`,
+          'margin': `0 ${margin.RIGHT - a + (hasY2 ? sliderSize : 0)}px 0 ${margin.LEFT - a + sliderSize}px`
+        }}>
           <RangeSlider
             valueRange={extentX}
             labelData={xData}

@@ -1,5 +1,12 @@
 .chartMain {
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.chartTopDiv {
+  flex: 1 1;
+  display: flex;
 }
 
 .axis {

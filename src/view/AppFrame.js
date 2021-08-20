@@ -115,7 +115,7 @@ class AppFrame extends Component {
             onLayoutChange={this.handleLayoutChanged('leftRight')}
           />
           <div key={`chart-${drawKey}`} className="rightPane" style={{ flexBasis:`${mainWidth}px` }}>
-            <RunTooltipChart ds={ds} time={-1} y1={[2, 3]} y2={[4, 5]} width={mainWidth} height={mainHeight - 36} />
+            <RunTooltipChart ds={ds} time={-1} y1={[2, 3]} y2={[4, 5]} width={mainWidth} height={mainHeight} />
           </div>
         </div>
         <LayoutDivider direction={DividerDirection.horizontal}
