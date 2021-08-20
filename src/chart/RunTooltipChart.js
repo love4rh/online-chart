@@ -244,7 +244,7 @@ class RunTooltipChart extends Component {
     return { bisectDate, axisX, axesY };
   }
 
-  updateD3Chart = () => {
+  updateD3Chart = (userXExtent) => {
     const { chartDiv, compID, margin, data, chartElement, canvasWidth, canvasHeight } = this.state;
     const { bisectDate, axisX, axesY } = chartElement;
 
@@ -256,14 +256,14 @@ class RunTooltipChart extends Component {
 
     // axis props: label, scale, axis, axisCall
 
-    axisX['scale'].domain(extentX);
+    axisX['scale'].domain(isvalid(userXExtent) ? userXExtent : extentX);
     axisX['axisCall'].scale(axisX['scale']);
 
     const indexAxisHasLabel = isvalid(xData) && !dateTimeAxis;
 
     const act = axisX['axis']
       .transition()
-      .call(!indexAxisHasLabel ? axisX['axisCall'] : axisX['axisCall'].tickFormat(idx => xData[idx]))
+      .call(!indexAxisHasLabel ? axisX['axisCall'] : axisX['axisCall'].tickFormat(idx => idx < 1 || idx > xData.length ? '' : xData[idx - 1]))
       .selectAll('text')
       .attr('y', '10');
 
@@ -372,6 +372,14 @@ class RunTooltipChart extends Component {
       .on('mousemove', cbShowToolTip);
     // end of overlay
 
+    const clipBoxID = compID + '_clip';
+
+    g.append('clipPath')
+      .attr('id', clipBoxID)
+      .append('rect')
+      .attr('width', WIDTH)
+      .attr('height', HEIGHT)
+
     // Line Series Path generator
     yData.map((dl, i) => {
       const yScaler = axesY[i]['scale'];
@@ -382,7 +390,9 @@ class RunTooltipChart extends Component {
 
         d3.select('.' + lineID).remove();
 
-        g.append('path')
+        g.append('g')
+          .attr('clip-path', `url(#${clipBoxID})`)
+          .append('path')
           .on('mouseover', (ev) => {
             d3.select('.' + lineID).classed('selectedLine', true);
             if( isvalid(this.hideTimeOut) ) {
@@ -410,16 +420,29 @@ class RunTooltipChart extends Component {
     axesY[0]['label'].text('values');
   }
 
+  handleSliderEvent = (axisType) => (type, param) => {
+    console.log('handleSliderEvent', axisType, type, param);
+
+    if( axisType === 'X' ) {
+      this.updateD3Chart(param);
+    }
+  }
+
   render() {
     const { width } = this.props;
     const { data, chartDiv } = this.state;
-    const { dataSize, xData, yData, dateTimeAxis, extentX, extentY } = data;
+    const { xData, dateTimeAxis, extentX, extentY } = data;
 
     return (
       <div className="chartMain">
         <div ref={chartDiv} />
-        <div style={{ width:`${width}px`, height:'36px' }}>
-          <RangeSlider range={[1, dataSize]} />
+        <div style={{ width:`${width - 16}px`, height:'36px', padding:'0px 8px' }}>
+          <RangeSlider
+            valueRange={extentX}
+            labelData={xData}
+            onEvent={this.handleSliderEvent('X')}
+            dateTime={dateTimeAxis}
+          />
         </div>
       </div>
     );
