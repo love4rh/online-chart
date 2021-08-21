@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 
 import { LayoutDivider, DividerDirection } from '../component/LayoutDivider.js';
 
+import { convertToChartData } from '../chart/chartTool.js';
 import { RunTooltipChart } from '../chart/RunTooltipChart.js';
 // import { LineTooltipChart } from '../chart/LineTooltipChart.js';
 
@@ -89,6 +90,8 @@ class AppFrame extends Component {
 
     const dataPaneHeight = mainHeight - controlPaneHeight - dividerSize;
 
+    const chartData = convertToChartData({ ds, time: 0, y1: [1, 2], y2: [3, 4, 5] });
+
     return (
       <div ref={this._mainDiv} className="appFrame">
         <div className="topPane">
@@ -115,7 +118,7 @@ class AppFrame extends Component {
             onLayoutChange={this.handleLayoutChanged('leftRight')}
           />
           <div key={`chart-${drawKey}`} className="rightPane" style={{ flexBasis:`${mainWidth}px` }}>
-            <RunTooltipChart ds={ds} time={-1} y1={[2, 3]} y2={[4, 5]} withSlider={true} withYSlider={false} width={mainWidth} height={mainHeight} />
+            <RunTooltipChart data={chartData} withSlider={true} withYSlider={true} width={mainWidth} height={mainHeight} />
           </div>
         </div>
         <LayoutDivider direction={DividerDirection.horizontal}

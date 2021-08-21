@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 
 import * as d3 from 'd3';
 
-import { makeid, isvalid, istrue, isDateTime, numberWithCommas, isundef } from '../grid/common.js';
+import { makeid, isvalid, istrue, numberWithCommas } from '../grid/common.js';
 
 import { RangeSlider } from '../component/RangeSlider.js';
 
@@ -28,10 +28,7 @@ class RunTooltipChart extends Component {
     width: PropTypes.number, // 차트 가로 너비
     height: PropTypes.number, // 차트 세로 넢이
     title: PropTypes.string, // 차트 제목
-    ds: PropTypes.object.isRequired, // 데이터 소스 (grid/DataSrouce 참고)
-    time: PropTypes.number, // 시간축 데이터 컬럼. ds의 컬럼 인덱스 중 선택. 없거나 -1이면 데이터 인덱스. 날짜가 아니라면 Label로 간주함
-    y1: PropTypes.array.isRequired, // left 축에 그릴 데이터 컬럼
-    y2: PropTypes.array, // right 축에 그릴 데이터 컬럼,
+    data: PropTypes.object.isRequired, // 차팅 데이터. convertToChartData 참고
     withSlider: PropTypes.bool, // 데이터 조정을 위한 슬라이더 포함 여부 (가로축)
     withYSlider: PropTypes.bool // 데이터 조정을 위한 슬라이더 포함 여부 (세로축)
   }
@@ -39,17 +36,19 @@ class RunTooltipChart extends Component {
   constructor(props) {
     super(props);
 
-    const { width, height, y2 } = this.props;
+    const { width, height, data } = this.props;
 
     const withSlider = istrue(this.props.withSlider);
     const withYSlider = istrue(this.props.withYSlider);
 
+    const hasY2 = this.props.data.yData.length > 1;
+
     this.state = {
       compID: 'tk' + makeid(8),
       chartDiv: React.createRef(),
-      data: this.initializeData(),
-      margin: { LEFT: 70, RIGHT: 70, TOP: 50, BOTTOM: 50 },
-      canvasWidth: width - (withYSlider ? (sliderSize + (isvalid(y2) && y2.length > 0 ? sliderSize : 0)) : 0),
+      data,
+      margin: { LEFT: 70, RIGHT: 70, TOP: 50, BOTTOM: 70 },
+      canvasWidth: width - (withYSlider ? (sliderSize + (hasY2 ? sliderSize : 0)) : 0),
       canvasHeight: height - (withSlider ? sliderSize : 0),
       chartElement: {},
       withSlider,
@@ -76,9 +75,11 @@ class RunTooltipChart extends Component {
     if( nextProps.width !== prevState.canvasWidth || nextProps.height !== prevState.canvasHeight ) {
       const withSlider = istrue(nextProps.withSlider);
       const withYSlider = istrue(nextProps.withYSlider);
+      const hasY2 = nextProps.data.yData.length > 1;
+
       return {
         withSlider, withYSlider,
-        canvasWidth: nextProps.width - (withYSlider ? (sliderSize + (isvalid(nextProps.y2) && nextProps.y2.length > 0 ? sliderSize : 0)) : 0),
+        canvasWidth: nextProps.width - (withYSlider ? (sliderSize + (hasY2 ? sliderSize : 0)) : 0),
         canvasHeight: nextProps.height - (withSlider ? sliderSize : 0)
       };
     }
@@ -100,81 +101,6 @@ class RunTooltipChart extends Component {
 
   componentDidUpdate() {
     this.updateD3Chart();
-  }
-
-  getSeriesColor = (idx) => d3.schemeTableau10[idx % d3.schemeTableau10.length]
-
-  initializeData = () => {
-    const { ds, time, y1, y2 } = this.props;
-
-    const withX = isvalid(time) && time !== -1;
-    const dateTimeAxis = withX && isDateTime(ds.getColumnType(time));
-    const dataSize = ds._getRowCount(true);
-
-    let xData = null;
-    let sortedX = null;
-    let extentX = [0, dataSize + 1];
-
-    if( dateTimeAxis ) {
-      const tmpX = [];
-      // 2021-08-12 21:03:43
-      const parseTime = d3.timeParse("%Y-%m-%d %H:%M:%S");
-
-      for(let r = 0; r < dataSize; ++r) {
-        tmpX.push([parseTime(ds.getCellValue(time, r)), r]);
-      }
-
-      tmpX.sort( (a, b) => a[0] > b[0] ? 1 : (a[0] < b[0] ? -1 : 0) );
-
-      xData = tmpX.map(d => d[0]);
-      sortedX = tmpX.map(d => d[1]);
-      extentX = [xData[0], xData[xData.length - 1]];
-    } else if( withX ) {
-      xData = [];
-      for(let r = 0; r < dataSize; ++r) {
-        xData.push(ds.getCellValue(time, r));
-      }
-    }
-
-    let cCount = 0;
-    const yData = [], extentY = [];
-
-    [y1, y2].map((y, i) => {
-      if( isundef(y) ) {
-        return false;
-      }
-
-      const tmpE = [null, null];
-
-      yData.push( y.map(c => {
-        const data = [];
-        const title = ds.getColumnName(c);
-        const color = this.getSeriesColor(cCount);
-        cCount += 1;
-
-        for(let r = 0; r < dataSize; ++r) {
-          const sIdx = sortedX ? sortedX[r] : r;
-          const v = ds.getCellValue(c, sIdx);
-  
-          data.push(v);
-  
-          if( isvalid(v) ) {
-            if( isvalid(tmpE[0]) ) {
-              tmpE[0] = Math.min(tmpE[0], v);
-              tmpE[1] = Math.max(tmpE[1], v);
-            } else {
-              tmpE[0] = v;
-              tmpE[1] = v;
-            }
-          }
-        }
-        return { data, title, color };
-      }) );
-      extentY.push(tmpE);
-      return true;
-    });
-    
-    return { dataSize, xData, yData, dateTimeAxis, extentX, extentY };
   }
 
   initializeD3Area = (canvasWidth, canvasHeight) => {
@@ -436,7 +362,7 @@ class RunTooltipChart extends Component {
   }
 
   handleSliderEvent = (axisType) => (type, param) => {
-    console.log('handleSliderEvent', axisType, type, param);
+    // console.log('handleSliderEvent', axisType, type, param);
 
     if( axisType === 'X' ) {
       this.updateD3Chart(param);

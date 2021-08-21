@@ -175,31 +175,32 @@ class RangeSlider extends Component {
 
   handleKeyDown = (ev) => {
     const { vertical, selectedRange } = this.state;
-    const { keyCode } = ev;
+    const { keyCode, shiftKey } = ev; // ctrlKey
 
     // console.log('keyDown', keyCode);
 
-    const r = 0.05;
+    const r = shiftKey ? 0.05 : 0.01;
+    const m = shiftKey ? 10 : 5;
 
     if( vertical ) {
-      const { offsetHeight } = this._mainDiv.current;
+      // const { offsetHeight } = this._mainDiv.current;
 
       if( keyCode === 37 ) { // left (선택 범위 10% 감소)
         this._moveSlider('both', -r, true);
       } else if( keyCode === 39 ) { // right (선택 범위 10% 증가)
         this._moveSlider('both', r, true);
       } else if( keyCode === 38 ) { // up (위로 이동)
-        this._moveSlider('track', - offsetHeight * r, true, selectedRange);
+        this._moveSlider('track', - m, true, selectedRange);
       } else if( keyCode === 40 ) { // down (아래로 이동)
-        this._moveSlider('track', offsetHeight * r, true, selectedRange);
+        this._moveSlider('track', m, true, selectedRange);
       }
     } else {
-      const { offsetWidth } = this._mainDiv.current;
+      // const { offsetWidth } = this._mainDiv.current;
 
       if( keyCode === 37 ) { // left (왼쪽 이동)
-        this._moveSlider('track', - offsetWidth * r, true, selectedRange);
+        this._moveSlider('track', - m, true, selectedRange);
       } else if( keyCode === 39 ) { // right (오른쪽 이동)
-        this._moveSlider('track', offsetWidth * r, true, selectedRange);
+        this._moveSlider('track', m, true, selectedRange);
       } else if( keyCode === 38 ) { // up (선택 범위 10% 증가)
         this._moveSlider('both', r, true);
       } else if( keyCode === 40 ) { // down (선택 범위 10% 감소)
