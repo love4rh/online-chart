@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 
-import { isundef, cp, istrue, isvalid, dateToString } from '../grid/common';
+import { isundef, cp, istrue, isvalid, dateToString, nvl } from '../grid/common';
 
 import './RangeSlider.scss';
 
@@ -21,12 +21,13 @@ class RangeSlider extends Component {
     vertical: PropTypes.bool, // 세로 여부
     labelData: PropTypes.array, // Label 데이터 여부
     dateTime: PropTypes.bool, // 날짜 (Date 객체) 여부 반환
+    tipTextPos: PropTypes.string, // Tip Text 표시 위치. top, bottom, left, right. 기본값 top
   };
 
   constructor (props) {
     super(props);
 
-    const { valueRange, selectedRange, vertical, labelData, dateTime } = props;
+    const { valueRange, selectedRange, vertical, labelData, dateTime, tipTextPos } = props;
 
     const range = istrue(dateTime) ? valueRange.map(d => d.getTime()) : valueRange;
 
@@ -36,7 +37,8 @@ class RangeSlider extends Component {
       vertical: istrue(vertical),
       mouseState: null,
       labelData,
-      dateTime: istrue(dateTime)
+      dateTime: istrue(dateTime),
+      tipTextPos: nvl(tipTextPos, 'top')
     };
 
     this._mainDiv = React.createRef();
@@ -66,7 +68,7 @@ class RangeSlider extends Component {
 
     if( vertical ) {
       const { offsetTop, offsetHeight } = this._mainDiv.current;
-      rp = (pos - offsetTop) / offsetHeight * (range[1] - range[0]);
+      rp = (offsetHeight - (pos - offsetTop)) / offsetHeight * (range[1] - range[0]);
     } else {
       const { offsetLeft, offsetWidth } = this._mainDiv.current;
       rp = (pos - offsetLeft) / offsetWidth * (range[1] - range[0]);
@@ -81,7 +83,7 @@ class RangeSlider extends Component {
     const { vertical, range } = this.state;
 
     return vertical
-      ? gap / this._mainDiv.current.offsetHeight * (range[1] - range[0])
+      ? - gap / this._mainDiv.current.offsetHeight * (range[1] - range[0])
       : gap / this._mainDiv.current.offsetWidth * (range[1] - range[0]);
   }
 
@@ -144,11 +146,14 @@ class RangeSlider extends Component {
     const { selectedRange, range } = this.state;
 
     if( type === 'track' ) {
-      const gap = this.calculateGap(value);
-      if( sRange[0] + gap >= range[0] && sRange[1] + gap <= range[1] ) {
-        selectedRange[0] = sRange[0] + gap;
-        selectedRange[1] = sRange[1] + gap;
-      }
+      let gap = this.calculateGap(value);
+      if( sRange[0] + gap < range[0] ) {
+        gap = range[0] - sRange[0];
+      } else if( range[1] < sRange[1] + gap ) {
+        gap = range[1] - sRange[1];
+      } 
+      selectedRange[0] = sRange[0] + gap;
+      selectedRange[1] = sRange[1] + gap;
     } else if( type === 'both' ) {
       const mv = (range[1] - range[0]) * value;
       selectedRange[0] = Math.max(range[0], Math.min(selectedRange[0] - mv, range[1]));
@@ -176,60 +181,109 @@ class RangeSlider extends Component {
 
     const r = 0.05;
 
-    if( keyCode === 37 ) { // left (왼쪽 이동)
-      const w = vertical ? this._mainDiv.current.offsetHeight : this._mainDiv.current.offsetWidth;
-      this._moveSlider('track', - w * r, true, selectedRange);
-    } else if( keyCode === 39 ) { // right (오른쪽 이동)
-      const w = vertical ? this._mainDiv.current.offsetHeight : this._mainDiv.current.offsetWidth;
-      this._moveSlider('track', w * r, true, selectedRange);
-    } else if( keyCode === 38 ) { // up (선택 범위 10% 증가)
-      this._moveSlider('both', r, true);
-    } else if( keyCode === 40 ) { // down (선택 범위 10% 감소)
-      this._moveSlider('both', -r, true);
+    if( vertical ) {
+      const { offsetHeight } = this._mainDiv.current;
+
+      if( keyCode === 37 ) { // left (선택 범위 10% 감소)
+        this._moveSlider('both', -r, true);
+      } else if( keyCode === 39 ) { // right (선택 범위 10% 증가)
+        this._moveSlider('both', r, true);
+      } else if( keyCode === 38 ) { // up (위로 이동)
+        this._moveSlider('track', - offsetHeight * r, true, selectedRange);
+      } else if( keyCode === 40 ) { // down (아래로 이동)
+        this._moveSlider('track', offsetHeight * r, true, selectedRange);
+      }
+    } else {
+      const { offsetWidth } = this._mainDiv.current;
+
+      if( keyCode === 37 ) { // left (왼쪽 이동)
+        this._moveSlider('track', - offsetWidth * r, true, selectedRange);
+      } else if( keyCode === 39 ) { // right (오른쪽 이동)
+        this._moveSlider('track', offsetWidth * r, true, selectedRange);
+      } else if( keyCode === 38 ) { // up (선택 범위 10% 증가)
+        this._moveSlider('both', r, true);
+      } else if( keyCode === 40 ) { // down (선택 범위 10% 감소)
+        this._moveSlider('both', -r, true);
+      }
     }
   }
 
   render () {
-    const { range, selectedRange, mouseState, labelData, dateTime } = this.state;
+    const { vertical, range, selectedRange, mouseState, labelData, dateTime, tipTextPos } = this.state;
 
     const thumbId = ['left', 'right'];
 
     let valueText;
+    const sRange = selectedRange;
 
     // 시간 (Date 이용)
     if( dateTime ) {
-      valueText = selectedRange.map(v => dateToString(new Date(Math.round(v))) );
+      valueText = sRange.map(v => dateToString(new Date(Math.round(v))) );
     } else if( isvalid(labelData) ) {
-      valueText = selectedRange.map(v => labelData[Math.min(labelData.length - 1, Math.max(0, Math.floor(v) - 1))] );
+      valueText = sRange.map(v => labelData[Math.min(labelData.length - 1, Math.max(0, Math.floor(v) - 1))] );
     } else {
-      valueText = selectedRange.map(v => '' + Math.floor(v));
+      valueText = sRange.map(v => '' + Math.floor(v));
     }
 
-    const thumbPos = selectedRange.map(v => (v - range[0]) / (range[1] - range[0]) * 100 );
+    const thumbPos = sRange.map(v => (vertical ? (range[1] - v) : (v - range[0])) / (range[1] - range[0]) * 100 );
     const actType = isvalid(mouseState) && mouseState.type;
+
+    // set up dimension depending on vertical
+    let styleMain = {}, styleRail = {}, styleTrack = {};
+    if( vertical ) {
+      styleMain = { width:`2px`, height:`100%`, padding:`0 13px` };
+      styleRail = { width:`2px`, height:`100%` };
+      styleTrack = { width:`2px`, top:`${Math.min(thumbPos[1], thumbPos[0])}%`, height:`${Math.abs(thumbPos[1] - thumbPos[0])}%` };
+    } else {
+      styleMain = { width:`100%`, height:`2px`, padding:`13px 0` };
+      styleRail = { width:`100%`, height:`2px` };
+      styleTrack = { height:`2px`, left:`${Math.min(thumbPos[1], thumbPos[0])}%`, width:`${Math.abs(thumbPos[1] - thumbPos[0])}%` };
+    }
 
   	return (
   		<div
         ref={this._mainDiv}
         tabIndex="1"
         className="rangeSliderMain"
+        style={styleMain}
         onKeyDown={this.handleKeyDown}
       >
-        <span className="rangeRail" />
+        <span className="rangeRail" style={styleRail} />
         <span
           className="rangeTrack"
-          style={{ left:`${Math.min(thumbPos[1], thumbPos[0])}%`, width:`${Math.abs(thumbPos[1] - thumbPos[0])}%` }}
+          style={styleTrack}
           onMouseDown={this.handleMouseDown('track')}
         />
         { thumbId.map((id, idx) => {
+          const stylePos = vertical
+            ? { top:`${thumbPos[idx]}%`, margin:`-6px 0 0 -5px` }
+            : { left:`${thumbPos[idx]}%`, margin:`-5px 0 0 -6px` };
+
+          const textPos = { width:`${valueText[idx].length * 0.5}rem` };
+
+          if( tipTextPos === 'top') {
+            textPos.top = `-34px`;
+          } else if( tipTextPos === 'bottom') {
+            textPos.bottom = `-34px`;
+          } else if( tipTextPos === 'right') {
+            textPos.left = `22px`;
+          } else if( tipTextPos === 'left') {
+            textPos.right = `22px`;
+          }
+
           return (
             <span
               key={`thumb-${id}`}
               className="rangeThumb"
-              style={{ left:`${thumbPos[idx]}%` }}
+              style={stylePos}
               onMouseDown={this.handleMouseDown(id)}
             >
-              <span className={['thumbText', (actType === id || actType === 'track' ? 'showThumbText' : '')].join(' ')} style={{ width:`${valueText[idx].length * 0.5}rem` }}>{valueText[idx]}</span>
+              <span
+                className={['thumbText', (actType === id || actType === 'track' ? 'showThumbText' : '')].join(' ')}
+                style={textPos}
+              >
+                {valueText[idx]}
+              </span>
             </span>
           );
         })}

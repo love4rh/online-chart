@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 
 import * as d3 from 'd3';
 
-import { makeid, isvalid, isDateTime, numberWithCommas, isundef } from '../grid/common.js';
+import { makeid, isvalid, istrue, isDateTime, numberWithCommas, isundef } from '../grid/common.js';
 
 import { RangeSlider } from '../component/RangeSlider.js';
 
@@ -31,7 +31,9 @@ class RunTooltipChart extends Component {
     ds: PropTypes.object.isRequired, // 데이터 소스 (grid/DataSrouce 참고)
     time: PropTypes.number, // 시간축 데이터 컬럼. ds의 컬럼 인덱스 중 선택. 없거나 -1이면 데이터 인덱스. 날짜가 아니라면 Label로 간주함
     y1: PropTypes.array.isRequired, // left 축에 그릴 데이터 컬럼
-    y2: PropTypes.array // right 축에 그릴 데이터 컬럼
+    y2: PropTypes.array, // right 축에 그릴 데이터 컬럼,
+    withSlider: PropTypes.bool, // 데이터 조정을 위한 슬라이더 포함 여부 (가로축)
+    withYSlider: PropTypes.bool // 데이터 조정을 위한 슬라이더 포함 여부 (세로축)
   }
 
   constructor(props) {
@@ -39,14 +41,19 @@ class RunTooltipChart extends Component {
 
     const { width, height, y2 } = this.props;
 
+    const withSlider = istrue(this.props.withSlider);
+    const withYSlider = istrue(this.props.withYSlider);
+
     this.state = {
       compID: 'tk' + makeid(8),
       chartDiv: React.createRef(),
       data: this.initializeData(),
       margin: { LEFT: 70, RIGHT: 70, TOP: 50, BOTTOM: 50 },
-      canvasWidth: width - sliderSize - (isvalid(y2) && y2.length > 0 ? sliderSize : 0),
-      canvasHeight: height,
-      chartElement: {}
+      canvasWidth: width - (withYSlider ? (sliderSize + (isvalid(y2) && y2.length > 0 ? sliderSize : 0)) : 0),
+      canvasHeight: height - (withSlider ? sliderSize : 0),
+      chartElement: {},
+      withSlider,
+      withYSlider
     };
 
     this.hideTimeOut = null;
@@ -67,9 +74,12 @@ class RunTooltipChart extends Component {
 
   static getDerivedStateFromProps(nextProps, prevState) {
     if( nextProps.width !== prevState.canvasWidth || nextProps.height !== prevState.canvasHeight ) {
+      const withSlider = istrue(nextProps.withSlider);
+      const withYSlider = istrue(nextProps.withYSlider);
       return {
-        canvasWidth: nextProps.width - sliderSize - (isvalid(nextProps.y2) && nextProps.y2.length > 0 ? sliderSize : 0),
-        canvasHeight: nextProps.height
+        withSlider, withYSlider,
+        canvasWidth: nextProps.width - (withYSlider ? (sliderSize + (isvalid(nextProps.y2) && nextProps.y2.length > 0 ? sliderSize : 0)) : 0),
+        canvasHeight: nextProps.height - (withSlider ? sliderSize : 0)
       };
     }
 
@@ -249,7 +259,7 @@ class RunTooltipChart extends Component {
     return { bisectDate, axisX, axesY };
   }
 
-  updateD3Chart = (userXExtent) => {
+  updateD3Chart = (userXExtent, userYExtent) => {
     const { chartDiv, compID, margin, data, chartElement, canvasWidth, canvasHeight } = this.state;
     const { bisectDate, axisX, axesY } = chartElement;
 
@@ -282,7 +292,7 @@ class RunTooltipChart extends Component {
     }
 
     axesY.map((axis, i) => {
-      axis['scale'].domain(extentY[i]);
+      axis['scale'].domain(isvalid(userYExtent) && isvalid(userYExtent[i]) ? userYExtent[i] : extentY[i]);
       axis['axisCall'].scale(axis['scale']);
       axis['axis'].transition().call( axis['axisCall'].tickFormat(v => numberWithCommas(v)) );
       return true;
@@ -430,12 +440,16 @@ class RunTooltipChart extends Component {
 
     if( axisType === 'X' ) {
       this.updateD3Chart(param);
+    } else if( axisType === 'Y1' ) {
+      this.updateD3Chart(null, [param, null]);
+    } else if( axisType === 'Y2' ) {
+      this.updateD3Chart(null, [null, param]);
     }
   }
 
   render() {
-    const { width, height } = this.props;
-    const { data, chartDiv, margin } = this.state;
+    const { width } = this.props;
+    const { data, chartDiv, margin, withSlider, withYSlider } = this.state;
     const { xData, dateTimeAxis, extentX, extentY } = data;
 
     const a = 9, p = 8;
@@ -444,46 +458,52 @@ class RunTooltipChart extends Component {
     return (
       <div className="chartMain">
         <div className="chartTopDiv">
-          <div style={{
-            'width': `${sliderSize}px`,
-            'padding': `${p}px0 `,
-            'margin': `${margin.TOP - 10}px 0 ${margin.BOTTOM - 10}px 0`
-          }}>
-            <RangeSlider
-              valueRange={extentY[0]}
-              onEvent={this.handleSliderEvent('Y1')}
-              vertical={true}
-            />
-          </div>
-          <div ref={chartDiv} />
-          { hasY2 &&
+          { withYSlider &&
             <div style={{
               'width': `${sliderSize}px`,
-              'padding': `${p}px0 `,
+              'padding': `${p}px 0`,
+              'margin': `${margin.TOP - 10}px 0 ${margin.BOTTOM - 10}px 0`
+            }}>
+              <RangeSlider
+                valueRange={extentY[0]}
+                onEvent={this.handleSliderEvent('Y1')}
+                vertical={true}
+                tipTextPos={'right'}
+              />
+            </div>
+          }
+          <div ref={chartDiv} />
+          { hasY2 && withYSlider &&
+            <div style={{
+              'width': `${sliderSize}px`,
+              'padding': `${p}px 0`,
               'margin': `${margin.TOP - 10}px 0 ${margin.BOTTOM - 10}px 0`
             }}>
               <RangeSlider
                 valueRange={extentY[1]}
-                onEvent={this.handleSliderEvent('Y1')}
+                onEvent={this.handleSliderEvent('Y2')}
                 vertical={true}
+                tipTextPos={'left'}
               />
             </div>
           }
         </div>
-        <div style={{
-          'width': `${width - margin.LEFT - margin.RIGHT + (a - p) * 2 - sliderSize - (hasY2 ? sliderSize : 0)}px`,
-          'height': `${sliderSize}px`,
-          'flexBasis': `${sliderSize}px`,
-          'padding': `0 ${p}px`,
-          'margin': `0 ${margin.RIGHT - a + (hasY2 ? sliderSize : 0)}px 0 ${margin.LEFT - a + sliderSize}px`
-        }}>
-          <RangeSlider
-            valueRange={extentX}
-            labelData={xData}
-            onEvent={this.handleSliderEvent('X')}
-            dateTime={dateTimeAxis}
-          />
-        </div>
+        { withSlider &&
+          <div style={{
+            'width': `${width - margin.LEFT - margin.RIGHT + (a - p) * 2 - sliderSize - (hasY2 ? sliderSize : 0)}px`,
+            'height': `${sliderSize}px`,
+            'flexBasis': `${sliderSize}px`,
+            'padding': `0 ${p}px`,
+            'margin': `0 ${margin.RIGHT - a + (hasY2 ? sliderSize : 0)}px 0 ${margin.LEFT - a + sliderSize}px`
+          }}>
+            <RangeSlider
+              valueRange={extentX}
+              labelData={xData}
+              onEvent={this.handleSliderEvent('X')}
+              dateTime={dateTimeAxis}
+            />
+          </div>
+        }
       </div>
     );
   }
