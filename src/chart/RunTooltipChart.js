@@ -5,13 +5,11 @@ import * as d3 from 'd3';
 
 import { makeid, isvalid, istrue, numberWithCommas } from '../grid/common.js';
 
-import { RangeSlider } from '../component/RangeSlider.js';
+import { RangeSlider, sliderSize } from '../component/RangeSlider.js';
 
 import './styles.scss';
 
 
-
-const sliderSize = 28;
 
 /**
  * Run Chart
@@ -29,14 +27,15 @@ class RunTooltipChart extends Component {
     height: PropTypes.number, // 차트 세로 넢이
     title: PropTypes.string, // 차트 제목
     data: PropTypes.object.isRequired, // 차팅 데이터. convertToChartData 참고
+    showingRangeX: PropTypes.array, // X축 표시 범위. 없으면 전체
     withSlider: PropTypes.bool, // 데이터 조정을 위한 슬라이더 포함 여부 (가로축)
-    withYSlider: PropTypes.bool // 데이터 조정을 위한 슬라이더 포함 여부 (세로축)
+    withYSlider: PropTypes.bool, // 데이터 조정을 위한 슬라이더 포함 여부 (세로축)
   }
 
   constructor(props) {
     super(props);
 
-    const { width, height, data } = this.props;
+    const { width, height, data, showingRangeX } = this.props;
 
     const withSlider = istrue(this.props.withSlider);
     const withYSlider = istrue(this.props.withYSlider);
@@ -52,7 +51,8 @@ class RunTooltipChart extends Component {
       canvasHeight: height - (withSlider ? sliderSize : 0),
       chartElement: {},
       withSlider,
-      withYSlider
+      withYSlider,
+      userXExtent: showingRangeX
     };
 
     this.hideTimeOut = null;
@@ -185,8 +185,8 @@ class RunTooltipChart extends Component {
     return { bisectDate, axisX, axesY };
   }
 
-  updateD3Chart = (userXExtent, userYExtent) => {
-    const { chartDiv, compID, margin, data, chartElement, canvasWidth, canvasHeight } = this.state;
+  updateD3Chart = () => {
+    const { chartDiv, compID, margin, data, chartElement, canvasWidth, canvasHeight, userXExtent, userYExtent } = this.state;
     const { bisectDate, axisX, axesY } = chartElement;
 
     // xData가 null이면 data index임. xData가 null이 아니고 dateTimeAxis가 false이면 label임.
@@ -284,7 +284,7 @@ class RunTooltipChart extends Component {
           tooltipBox.append('div')
             .classed('tooltipItem', true)
             .style('color', dd.color)
-            .style('opacity', '0.8')
+            // .style('opacity', '0.8')
             .text(`${dd.title}: ${dd.data[dataIdx]}`);
 
           sCount += 1;
@@ -362,20 +362,21 @@ class RunTooltipChart extends Component {
   }
 
   handleSliderEvent = (axisType) => (type, param) => {
+    const { userYExtent } = this.state;
     // console.log('handleSliderEvent', axisType, type, param);
 
     if( axisType === 'X' ) {
-      this.updateD3Chart(param);
+      this.setState({ userXExtent: param });
     } else if( axisType === 'Y1' ) {
-      this.updateD3Chart(null, [param, null]);
+      this.setState({ userYExtent: [param, userYExtent && userYExtent[1]] });
     } else if( axisType === 'Y2' ) {
-      this.updateD3Chart(null, [null, param]);
+      this.setState({ userYExtent: [userYExtent && userYExtent[0], param] });
     }
   }
 
   render() {
     const { width } = this.props;
-    const { data, chartDiv, margin, withSlider, withYSlider } = this.state;
+    const { data, chartDiv, margin, withSlider, withYSlider, userXExtent, userYExtent } = this.state;
     const { xData, dateTimeAxis, extentX, extentY } = data;
 
     const a = 9, p = 8;
@@ -392,6 +393,7 @@ class RunTooltipChart extends Component {
             }}>
               <RangeSlider
                 valueRange={extentY[0]}
+                selectedRange={userYExtent && userYExtent[0]}
                 onEvent={this.handleSliderEvent('Y1')}
                 vertical={true}
                 tipTextPos={'right'}
@@ -407,6 +409,7 @@ class RunTooltipChart extends Component {
             }}>
               <RangeSlider
                 valueRange={extentY[1]}
+                selectedRange={userYExtent && userYExtent[1]}
                 onEvent={this.handleSliderEvent('Y2')}
                 vertical={true}
                 tipTextPos={'left'}
@@ -424,6 +427,7 @@ class RunTooltipChart extends Component {
           }}>
             <RangeSlider
               valueRange={extentX}
+              selectedRange={userXExtent}
               labelData={xData}
               onEvent={this.handleSliderEvent('X')}
               dateTime={dateTimeAxis}

@@ -49,8 +49,8 @@
 }
 
 .rangeThumb {
-	width: 12px;
-	height: 12px;
+	width: 14px;
+	height: 14px;
 	display: flex;
 	outline: 0;
 	position: absolute;
@@ -68,5 +68,9 @@
 }
 
 .rangeThumb:hover .thumbText, .showThumbText {
+	transform: scale(1);
+}
+
+.rangeTrack:hover ~ .rangeThumb .thumbText {
 	transform: scale(1);
 }

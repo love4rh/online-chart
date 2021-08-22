@@ -34,7 +34,7 @@ const appData = {
     return {
       title: 'sample',
       columns: columns,
-      editable: false
+      editable: true
     };
   }
 };

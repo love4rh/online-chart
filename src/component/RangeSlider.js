@@ -6,6 +6,8 @@ import { isundef, cp, istrue, isvalid, dateToString, nvl } from '../grid/common'
 import './RangeSlider.scss';
 
 
+export const sliderSize = 32;
+
 
 /**
  * https://material-ui.com/components/slider/ 와 비슷한 슬라이더.
@@ -228,17 +230,18 @@ class RangeSlider extends Component {
 
     const thumbPos = sRange.map(v => (vertical ? (range[1] - v) : (v - range[0])) / (range[1] - range[0]) * 100 );
     const actType = isvalid(mouseState) && mouseState.type;
+    const L = 4;
 
     // set up dimension depending on vertical
     let styleMain = {}, styleRail = {}, styleTrack = {};
     if( vertical ) {
-      styleMain = { width:`2px`, height:`100%`, padding:`0 13px` };
-      styleRail = { width:`2px`, height:`100%` };
-      styleTrack = { width:`2px`, top:`${Math.min(thumbPos[1], thumbPos[0])}%`, height:`${Math.abs(thumbPos[1] - thumbPos[0])}%` };
+      styleMain = { width:`${L}px`, height:`100%`, padding:`0 13px` };
+      styleRail = { width:`${L}px`, height:`100%` };
+      styleTrack = { width:`${L}px`, top:`${Math.min(thumbPos[1], thumbPos[0])}%`, height:`${Math.abs(thumbPos[1] - thumbPos[0])}%` };
     } else {
-      styleMain = { width:`100%`, height:`2px`, padding:`13px 0` };
-      styleRail = { width:`100%`, height:`2px` };
-      styleTrack = { height:`2px`, left:`${Math.min(thumbPos[1], thumbPos[0])}%`, width:`${Math.abs(thumbPos[1] - thumbPos[0])}%` };
+      styleMain = { width:`100%`, height:`${L}px`, padding:`13px 0` };
+      styleRail = { width:`100%`, height:`${L}px` };
+      styleTrack = { height:`${L}px`, left:`${Math.min(thumbPos[1], thumbPos[0])}%`, width:`${Math.abs(thumbPos[1] - thumbPos[0])}%` };
     }
 
   	return (
@@ -263,13 +266,13 @@ class RangeSlider extends Component {
           const textPos = { width:`${valueText[idx].length * 0.5}rem` };
 
           if( tipTextPos === 'top') {
-            textPos.top = `-34px`;
+            textPos.top = `-36px`;
           } else if( tipTextPos === 'bottom') {
-            textPos.bottom = `-34px`;
+            textPos.bottom = `-36px`;
           } else if( tipTextPos === 'right') {
-            textPos.left = `22px`;
+            textPos.left = `24px`;
           } else if( tipTextPos === 'left') {
-            textPos.right = `22px`;
+            textPos.right = `24px`;
           }
 
           return (
