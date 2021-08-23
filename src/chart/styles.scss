@@ -80,15 +80,6 @@
   flex-wrap: nowrap;
 }
 
-.legendLine {
-  width: 36px;
-  height: 2px;
-  position: absolute;
-  border-radius: 1px;
-  background-color: currentColor;
-  display: block;
-}
-
 .legendItemBox {
   cursor: pointer;
   margin: 0 16px;
@@ -97,7 +88,7 @@
 .legendCheckBox {
   display: inline-block;
   position: relative;
-  top: 2px;
+  top: 3px;
 }
 
 .legendTitle {
