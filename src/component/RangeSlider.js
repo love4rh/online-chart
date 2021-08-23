@@ -6,7 +6,7 @@ import { isundef, cp, istrue, isvalid, dateToString, nvl } from '../grid/common'
 import './RangeSlider.scss';
 
 
-export const sliderSize = 32;
+export const sliderSize = 30; // 28 이상 짝수로 지정
 
 
 /**
@@ -230,7 +230,10 @@ class RangeSlider extends Component {
 
     const thumbPos = sRange.map(v => (vertical ? (range[1] - v) : (v - range[0])) / (range[1] - range[0]) * 100 );
     const actType = isvalid(mouseState) && mouseState.type;
-    const L = 4;
+
+    const L = (sliderSize - 24) / 2; // 28 --> 2, 32 --> 4
+    const M1 = 20 + L, M2 = 32 + L;
+    const TS = L + 10;
 
     // set up dimension depending on vertical
     let styleMain = {}, styleRail = {}, styleTrack = {};
@@ -260,19 +263,19 @@ class RangeSlider extends Component {
         />
         { thumbId.map((id, idx) => {
           const stylePos = vertical
-            ? { top:`${thumbPos[idx]}%`, margin:`-6px 0 0 -5px` }
-            : { left:`${thumbPos[idx]}%`, margin:`-5px 0 0 -6px` };
+            ? { top:`${thumbPos[idx]}%`, margin:`-6px 0 0 -5px`, width:`${TS}px`, height:`${TS}px` }
+            : { left:`${thumbPos[idx]}%`, margin:`-5px 0 0 -6px`, width:`${TS}px`, height:`${TS}px` };
 
           const textPos = { width:`${valueText[idx].length * 0.5}rem` };
 
           if( tipTextPos === 'top') {
-            textPos.top = `-36px`;
+            textPos.top = `-${M2}px`;
           } else if( tipTextPos === 'bottom') {
-            textPos.bottom = `-36px`;
+            textPos.bottom = `-${M2}px`;
           } else if( tipTextPos === 'right') {
-            textPos.left = `24px`;
+            textPos.left = `${M1}px`;
           } else if( tipTextPos === 'left') {
-            textPos.right = `24px`;
+            textPos.right = `${M1}px`;
           }
 
           return (

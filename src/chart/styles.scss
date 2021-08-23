@@ -70,3 +70,36 @@
   height: 24px;
   line-height: 24px;
 }
+
+.legendBox {
+  overflow: hidden;
+  flex-basis: 36px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+
+.legendLine {
+  width: 36px;
+  height: 2px;
+  position: absolute;
+  border-radius: 1px;
+  background-color: currentColor;
+  display: block;
+}
+
+.legendItemBox {
+  cursor: pointer;
+  margin: 0 16px;
+}
+
+.legendCheckBox {
+  display: inline-block;
+  position: relative;
+  top: 4px;
+}
+
+.legendTitle {
+  display: inline-block;
+}

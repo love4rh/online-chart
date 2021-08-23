@@ -7,6 +7,8 @@ import { makeid, isvalid, istrue, numberWithCommas } from '../grid/common.js';
 
 import { RangeSlider, sliderSize } from '../component/RangeSlider.js';
 
+import { RiCheckboxBlankLine, RiCheckboxLine } from 'react-icons/ri';
+
 import './styles.scss';
 
 
@@ -30,34 +32,54 @@ class RunTooltipChart extends Component {
     showingRangeX: PropTypes.array, // X축 표시 범위. 없으면 전체
     withSlider: PropTypes.bool, // 데이터 조정을 위한 슬라이더 포함 여부 (가로축)
     withYSlider: PropTypes.bool, // 데이터 조정을 위한 슬라이더 포함 여부 (세로축)
+    withLegend: PropTypes.bool, // 범례 표시 여부
   }
 
   constructor(props) {
     super(props);
 
-    const { width, height, data, showingRangeX } = this.props;
+    const { width, height, data, showingRangeX, withLegend } = this.props;
 
     const withSlider = istrue(this.props.withSlider);
     const withYSlider = istrue(this.props.withYSlider);
 
-    const hasY2 = this.props.data.yData.length > 1;
+    const useY2 = data && data.yData.length > 1;
+
+    // data {
+    // dataSize: 데이터 크기, xData: X축 데이터(없을 수 있음), yData: Y축 데이터 [Y1, Y2],
+    // dateTimeAxis: X출 시간축 여부, extentX: X축 범위, extentY: Y축 범위 목록
+    // }
+
+    const { dataSize, xData, dateTimeAxis, extentX, extentY } = data;
+    const yData = [];
+    data.yData.map((dl, idx) => {
+      dl.map(dd => {
+        yData.push({ ...dd, shown:true, useY2:(idx > 0) });
+        return true;
+      });
+      return true;
+    });
+
+    // console.log('ydata', yData);
 
     this.state = {
       compID: 'tk' + makeid(8),
       chartDiv: React.createRef(),
-      data,
+      data: { dataSize, xData, dateTimeAxis, extentX, yData, extentY1:extentY[0], extentY2:extentY[1] },
+      useY2,
       margin: { LEFT: 70, RIGHT: 70, TOP: 50, BOTTOM: 70 },
-      canvasWidth: width - (withYSlider ? (sliderSize + (hasY2 ? sliderSize : 0)) : 0),
+      canvasWidth: width - (withYSlider ? (sliderSize + (useY2 ? sliderSize : 0)) : 0),
       canvasHeight: height - (withSlider ? sliderSize : 0),
       chartElement: {},
       withSlider,
       withYSlider,
+      withLegend,
       userXExtent: showingRangeX
     };
 
     this.hideTimeOut = null;
 
-    console.log('RunChart construct', this.state);
+    // console.log('RunChart construct', this.state);
   }
   
   componentDidMount() {
@@ -104,9 +126,9 @@ class RunTooltipChart extends Component {
   }
 
   initializeD3Area = (canvasWidth, canvasHeight) => {
-    const { compID, chartDiv, margin, data } = this.state;
+    const { compID, chartDiv, margin, data, useY2 } = this.state;
 
-    const { dateTimeAxis, yData } = data;
+    const { dateTimeAxis } = data;
 
     const WIDTH = canvasWidth - margin.LEFT - margin.RIGHT;
     const HEIGHT = canvasHeight - margin.TOP - margin.BOTTOM;
@@ -163,7 +185,7 @@ class RunTooltipChart extends Component {
 
     axesY.push(tmpObj);
 
-    if( yData.length > 1 ) { // yData의 크기가 2이상이면 right axis 사용하는 경우가 있는 것임
+    if( useY2 ) {
       const tmpObj2 = {};
 
       tmpObj2['label'] = g.append('text')
@@ -186,11 +208,11 @@ class RunTooltipChart extends Component {
   }
 
   updateD3Chart = () => {
-    const { chartDiv, compID, margin, data, chartElement, canvasWidth, canvasHeight, userXExtent, userYExtent } = this.state;
+    const { chartDiv, compID, margin, data, chartElement, canvasWidth, canvasHeight, userXExtent, userY1Extent, userY2Extent } = this.state;
     const { bisectDate, axisX, axesY } = chartElement;
 
     // xData가 null이면 data index임. xData가 null이 아니고 dateTimeAxis가 false이면 label임.
-    const { dateTimeAxis, dataSize, xData, yData, extentX, extentY } = data;
+    const { dateTimeAxis, dataSize, xData, extentX, yData, extentY1, extentY2 } = data;
 
     const WIDTH = canvasWidth - margin.LEFT - margin.RIGHT;
     const HEIGHT = canvasHeight - margin.TOP - margin.BOTTOM;
@@ -217,8 +239,12 @@ class RunTooltipChart extends Component {
         .attr('text-anchor', 'middle');
     }
 
-    axesY.map((axis, i) => {
-      axis['scale'].domain(isvalid(userYExtent) && isvalid(userYExtent[i]) ? userYExtent[i] : extentY[i]);
+    axesY.map((axis, idx) => {
+      if( idx === 1 ) {
+        axis['scale'].domain(isvalid(userY2Extent) ? userY2Extent : extentY2);
+      } else {
+        axis['scale'].domain(isvalid(userY1Extent) ? userY1Extent : extentY1);
+      }
       axis['axisCall'].scale(axis['scale']);
       axis['axis'].transition().call( axis['axisCall'].tickFormat(v => numberWithCommas(v)) );
       return true;
@@ -278,23 +304,17 @@ class RunTooltipChart extends Component {
         .classed('tooltipItem', true)
         .text(`X: ${xData ? xData[dataIdx] : dataIdx}`); // TODO DateTime 처리
 
-      let sCount = 1;
-      yData.map(dl => {
-        dl.map(dd => {
-          tooltipBox.append('div')
-            .classed('tooltipItem', true)
-            .style('color', dd.color)
-            // .style('opacity', '0.8')
-            .text(`${dd.title}: ${dd.data[dataIdx]}`);
+      yData.map(dd => {
+        tooltipBox.append('div')
+          .classed('tooltipItem', true)
+          .style('color', dd.color)
+          .text(`${dd.title}: ${numberWithCommas(Math.round(dd.data[dataIdx] * 10000) / 10000)}`);
 
-          sCount += 1;
-          return true;
-        });
         return true;
       });
 
       const guideBoxWidth = 120 + 10;
-      const guideBoxHeight = sCount * 24 + 10;
+      const guideBoxHeight = yData.length * 24 + 10;
       const maxX = chartDiv.current.offsetLeft + chartDiv.current.offsetWidth;
       const maxY = chartDiv.current.offsetTop + chartDiv.current.offsetHeight
       const pX = ev.clientX + guideBoxWidth + margin.LEFT > maxX ? ev.clientX - guideBoxWidth + 5 : ev.clientX + 10;
@@ -322,36 +342,35 @@ class RunTooltipChart extends Component {
       .attr('height', HEIGHT)
 
     // Line Series Path generator
-    yData.map((dl, i) => {
-      const yScaler = axesY[i]['scale'];
+    yData.map((dd, idx) => {
+      const yScaler = axesY[dd.useY2 ? 1 : 0]['scale'];
       const line = d3.line().x((_, i) => xScaler(dateTimeAxis ? xData[i] : i + 1)).y(d => yScaler(d));
+      const lineID = compID + '_line_' + idx;
 
-      dl.map((dd, j) => {
-        const lineID = compID + '_line_' + i + '_' + j;
+      d3.select('.' + lineID).remove();
 
-        d3.select('.' + lineID).remove();
+      if( !dd.shown ) {
+        return false;
+      }
 
-        g.append('g')
-          .attr('clip-path', `url(#${clipBoxID})`)
-          .append('path')
-          .on('mouseover', (ev) => {
-            d3.select('.' + lineID).classed('selectedLine', true);
-            if( isvalid(this.hideTimeOut) ) {
-              clearTimeout(this.hideTimeOut);
-            }
-            cbShowToolTip(ev);
-           })
-          .on('mouseout', () => d3.select('.' + lineID).classed('selectedLine', false) )
-          .classed(lineID, true)
-          .attr('fill', 'none')
-          .attr('stroke', dd.color)
-          .attr('stroke-width', '2px')
-          .attr('opacity', '0.8')
-          .transition()
-          .attr('d', line(dd.data));
-
-        return dd.title;
-      });
+      g.append('g')
+        .attr('clip-path', `url(#${clipBoxID})`)
+        .append('path')
+        .on('mouseover', (ev) => {
+          d3.select('.' + lineID).classed('selectedLine', true);
+          if( isvalid(this.hideTimeOut) ) {
+            clearTimeout(this.hideTimeOut);
+          }
+          cbShowToolTip(ev);
+        })
+        .on('mouseout', () => d3.select('.' + lineID).classed('selectedLine', false) )
+        .classed(lineID, true)
+        .attr('fill', 'none')
+        .attr('stroke', dd.color)
+        .attr('stroke-width', '2px')
+        .attr('opacity', '0.8')
+        .transition()
+        .attr('d', line(dd.data));
 
       return true;
     });
@@ -362,25 +381,37 @@ class RunTooltipChart extends Component {
   }
 
   handleSliderEvent = (axisType) => (type, param) => {
-    const { userYExtent } = this.state;
     // console.log('handleSliderEvent', axisType, type, param);
 
     if( axisType === 'X' ) {
       this.setState({ userXExtent: param });
     } else if( axisType === 'Y1' ) {
-      this.setState({ userYExtent: [param, userYExtent && userYExtent[1]] });
+      this.setState({ userY1Extent: param });
     } else if( axisType === 'Y2' ) {
-      this.setState({ userYExtent: [userYExtent && userYExtent[0], param] });
+      this.setState({ userY2Extent: param });
     }
+  }
+
+  handleLengendItemClick = (sIdx) => () => {
+    const { data } = this.state;
+    const { yData } = data;
+
+    yData[sIdx].shown = !yData[sIdx].shown;
+
+    this.setState({ data: data });
   }
 
   render() {
     const { width } = this.props;
-    const { data, chartDiv, margin, withSlider, withYSlider, userXExtent, userYExtent } = this.state;
-    const { xData, dateTimeAxis, extentX, extentY } = data;
+    const {
+      data, chartDiv, margin,
+      withSlider, withYSlider, withLegend,
+      useY2, userXExtent, userY1Extent, userY2Extent
+    } = this.state;
+    const { xData, yData, dateTimeAxis, extentX, extentY } = data;
 
     const a = 9, p = 8;
-    const hasY2 = extentY.length > 1;
+    const hasY2 = withYSlider && useY2;
 
     return (
       <div className="chartMain">
@@ -393,7 +424,7 @@ class RunTooltipChart extends Component {
             }}>
               <RangeSlider
                 valueRange={extentY[0]}
-                selectedRange={userYExtent && userYExtent[0]}
+                selectedRange={userY1Extent}
                 onEvent={this.handleSliderEvent('Y1')}
                 vertical={true}
                 tipTextPos={'right'}
@@ -409,7 +440,7 @@ class RunTooltipChart extends Component {
             }}>
               <RangeSlider
                 valueRange={extentY[1]}
-                selectedRange={userYExtent && userYExtent[1]}
+                selectedRange={userY2Extent}
                 onEvent={this.handleSliderEvent('Y2')}
                 vertical={true}
                 tipTextPos={'left'}
@@ -417,13 +448,34 @@ class RunTooltipChart extends Component {
             </div>
           }
         </div>
+        { withLegend &&
+          <div className="legendBox">
+            { yData.map((dd, idx) => {
+              return (
+                <div key={`legend-item-${idx}`}
+                  className="legendItemBox"
+                  style={{ color:`${dd.color}` }}
+                  onClick={this.handleLengendItemClick(idx)}
+                >
+                  <div className="legendCheckBox">
+                    { dd.shown ? <RiCheckboxLine size="18" /> : <RiCheckboxBlankLine size="18" /> }
+                  </div>
+                  <div className="legendTitle">
+                    <span className="legendLine" />
+                    { dd.title }
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        }
         { withSlider &&
           <div style={{
-            'width': `${width - margin.LEFT - margin.RIGHT + (a - p) * 2 - sliderSize - (hasY2 ? sliderSize : 0)}px`,
+            'width': `${width - margin.LEFT - margin.RIGHT + (a - p) * 2 - (withYSlider ? sliderSize : 0) - (hasY2 ? sliderSize : 0)}px`,
             'height': `${sliderSize}px`,
             'flexBasis': `${sliderSize}px`,
             'padding': `0 ${p}px`,
-            'margin': `0 ${margin.RIGHT - a + (hasY2 ? sliderSize : 0)}px 0 ${margin.LEFT - a + sliderSize}px`
+            'margin': `0 ${margin.RIGHT - a + (hasY2 ? sliderSize : 0)}px 0 ${margin.LEFT - a + (withYSlider ? sliderSize : 0)}px`
           }}>
             <RangeSlider
               valueRange={extentX}

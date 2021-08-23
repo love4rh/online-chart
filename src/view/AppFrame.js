@@ -121,7 +121,7 @@ class AppFrame extends Component {
             <RunTooltipChart
               data={chartData}
               showingRangeX={[0, 300]}
-              withSlider={true} withYSlider={true}
+              withLegend={true} withSlider={true} withYSlider={false}
               width={mainWidth} height={mainHeight}
             />
           </div>
